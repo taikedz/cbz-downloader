@@ -1,0 +1,3 @@
+BBPATH="$BBPATH:./"
+BUILDOUTD=bin/
+BBFILES=(src/mfcom)
