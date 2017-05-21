@@ -1,0 +1,391 @@
+#!/bin/bash
+
+### mfcom Usage:help
+#
+# MangaFox Compiler
+#
+# Get all pages from a MangaFox commic to a local directory
+#
+###/doc
+
+set -euo pipefail
+
+### Helper for version management Usage:bbuild
+# Requires a version.bbuild in the current directory to work
+###/doc
+
+BBVERSION_MAJOR=0
+BBVERSION_MINOR=1
+BBVERSION_POINT=0
+BBVERSION_FLAG=dev
+BBVERSION_PROGRAM=mfcom
+BBVERSION_BUILDDATE=2017-05-21
+BBVERSION_BUILD=39
+
+function bbns_version_infoe {
+	type infoe 2>&1|if grep 'not found' -q; then
+		echo "$*" >&2
+	else
+		infoe "$*"
+	fi
+}
+
+function bbns_version_showversion {
+	bbns_version_infoe "$BBVERSION_PROGRAM : $(bbns_version_genversion)"
+	exit
+}
+
+function bbns_version_genversion {
+	echo "$BBVERSION_MAJOR.$BBVERSION_MINOR.$BBVERSION_POINT ($BBVERSION_FLAG build $BBVERSION_BUILD) $BBVERSION_BUILDDATE"
+}
+
+if [[ "$*" =~ --version ]]; then
+	bbns_version_showversion
+fi
+### notest FUNCTION ARGUMENTS Usage:bbuild
+#
+# This function performs a simple test to see if the "BBSETTESTMODE" variable
+# is set to the string "test mode"
+#
+# If so, it does NOT call the function. In all other cases, the function is
+# called with the arguments.
+#
+# The purpose of this function is to allow a simple method to encourage testability
+#
+# Example:
+#
+#
+# 	function action1 { ... }
+#
+# 	function action2 { ... }
+#
+# 	function main {
+# 		action1
+# 		action2
+# 	}
+#
+# 	notest main "$@"
+#
+# You can source a file with this kind of structure without the risk of triggering
+# its runtime. This allows the file to be sourced and tested safely.
+#
+###/doc
+
+function notest {
+	local funcall="$1"; shift
+
+	if [[ "${BBTESTMODE:-}" != "test mode" ]]; then
+		"$funcall" "$@"
+	fi
+}
+#!/bin/bash
+
+#!/bin/bash
+
+### Colours for bash Usage:bbuild
+# A series of colour flags for use in outputs.
+#
+# Example:
+# 	
+# 	echo "${CRED}Some red text ${CBBLU} some blue text $CDEF some text in the terminal's default colour"
+#
+# Colours available:
+#
+# CDEF -- switches to the terminal default
+#
+# CRED, CBRED -- red and bright/bold red
+# CGRN, CBGRN -- green and bright/bold green
+# CYEL, CBYEL -- yellow and bright/bold yellow
+# CBLU, CBBLU -- blue and bright/bold blue
+# CPUR, CBPUR -- purple and bright/bold purple
+#
+###/doc
+
+export CDEF="[0m"
+export CRED="[31m"
+export CGRN="[32m"
+export CYEL="[33m"
+export CBLU="[34m"
+export CPUR="[35m"
+export CBRED="[1;31m"
+export CBGRN="[1;32m"
+export CBYEL="[1;33m"
+export CBBLU="[1;34m"
+export CBPUR="[1;35m"
+
+MODE_DEBUG=no
+
+### debuge MESSAGE Usage:bbuild
+# print a blue debug message to stderr
+# only prints if MODE_DEBUG is set to "yes"
+###/doc
+function debuge {
+	if [[ "$MODE_DEBUG" = yes ]]; then
+		echo -e "${CBBLU}DEBUG:$CBLU$*$CDEF" 1>&2
+	fi
+}
+
+### infoe MESSAGE Usage:bbuild
+# print a green informational message to stderr
+###/doc
+function infoe {
+	echo -e "$CGRN$*$CDEF" 1>&2
+}
+
+### warne MESSAGE Usage:bbuild
+# print a yellow warning message to stderr
+###/doc
+function warne {
+	echo -e "${CBYEL}WARN:$CYEL $*$CDEF" 1>&2
+}
+
+### faile [CODE] MESSAGE Usage:bbuild
+# print a red failure message to stderr and exit with CODE
+# CODE must be a number
+# if no code is specified, error code 127 is used
+###/doc
+function faile {
+	local ERCODE=127
+	local numpat='^[0-9]+$'
+
+	if [[ "$1" =~ $numpat ]]; then
+		ERCODE="$1"; shift
+	fi
+
+	echo "${CBRED}ERROR FAIL:$CRED$*$CDEF" 1>&2
+	exit $ERCODE
+}
+
+function dumpe {
+	echo -n "[1;35m$*" 1>&2
+	echo -n "[0;35m" 1>&2
+	cat - 1>&2
+	echo -n "[0m" 1>&2
+}
+
+function breake {
+	if [[ "$MODE_DEBUG" != yes ]]; then
+		return
+	fi
+
+	read -p "${CRED}BREAKPOINT: $* >$CDEF " >&2
+	if [[ "$REPLY" =~ $(echo 'quit|exit|stop') ]]; then
+		faile "ABORT"
+	fi
+}
+
+### Auto debug Usage:main
+# When included, bashout processes a special "--debug" flag
+#
+# It does not remove the debug flag from arguments.
+###/doc
+
+if [[ "$*" =~ --debug ]]; then
+	MODE_DEBUG=yes
+fi
+#!/bin/bash
+
+### printhelp Usage:bbuild
+# Write your help as documentation comments in your script
+#
+# If you need to output the help from a running script, call the
+# `printhelp` function and it will print the help documentation
+# in the current script to stdout
+#
+# A help comment looks like this:
+#
+#	### <title> Usage:help
+#	#
+#	# <some content>
+#	#
+#	# end with "###/doc" on its own line (whitespaces before
+#	# and after are OK)
+#	#
+#	###/doc
+#
+###/doc
+
+CHAR='#'
+
+function printhelp {
+	local USAGESTRING=help
+	local TARGETFILE=$0
+	if [[ -n "$*" ]]; then USAGESTRING="$1" ; shift; fi
+	if [[ -n "$*" ]]; then TARGETFILE="$1" ; shift; fi
+
+        echo -e "\n$(basename "$TARGETFILE")\n===\n"
+        local SECSTART='^\s*'"$CHAR$CHAR$CHAR"'\s+(.+?)\s+Usage:'"$USAGESTRING"'\s*$'
+        local SECEND='^\s*'"$CHAR$CHAR$CHAR"'\s*/doc\s*$'
+        local insec="$(mktemp --tmpdir)"; rm "$insec"
+        cat "$TARGETFILE" | while read secline; do
+                if [[ "$secline" =~ $SECSTART ]]; then
+                        touch "$insec"
+                        echo -e "\n${BASH_REMATCH[1]}\n---\n"
+                elif [[ -f $insec ]]; then
+                        if [[ "$secline" =~ $SECEND ]]; then
+                                rm "$insec"
+                        else
+				echo "$secline" | sed -r "s/^\s*$CHAR//g"
+                        fi
+                fi
+        done
+        if [[ -f "$insec" ]]; then
+                echo "WARNING: Non-terminated help block." 1>&2
+		rm "$insec"
+        fi
+	echo ""
+}
+
+### automatic help Usage:main
+#
+# automatically call help if "--help" is detected in arguments
+#
+###/doc
+if [[ "$@" =~ --help ]]; then
+	printhelp
+	exit 0
+fi
+#!/bin/bash
+
+### Varify Usage:bbuild
+# Make a string into a valid variable name or file name
+#
+# Replaces any string of invalid characters into a "_"
+#
+# Valid characters for varify_var are:
+#
+# * a-z
+# * A-Z
+# * 0-9
+# * underscore ("_")
+#
+# Valid characters for varify_fil are as above, plus:
+#
+# * dash ("-")
+# * period (".")
+#
+# Can be used to produce filenames.
+###/doc
+
+function varify_var {
+	echo "$*" | sed -r 's/[^a-zA-Z0-9_]/_/g'
+}
+
+function varify_fil {
+	echo "$*" | sed -r 's/[^a-zA-Z0-9_.-]/_/g'
+}
+
+function wgetdl {
+	local downloadfile="$1"; shift
+	wget --header="$UAGENT" --header="Accept: text/html, image/*" --quiet -O "$downloadfile" "$@"
+	do_unzip "$downloadfile"
+}
+
+function get_mainList {
+	wgetdl "$F_MAIN" "$U_MAINPAGE"
+}
+
+function extract_links {
+	local sourcefile="$1"; shift
+	local targetfile="$1"; shift
+
+	grep "$U_MAINPAGE" "$sourcefile" | grep -Po 'a href="'"$U_MAINPAGE"'.*?"'|grep -Po "$U_MAINPAGE[^\"]+" > "$targetfile"
+}
+
+function do_unzip {
+	if (file "$1"|grep gzip -q); then
+		mv "$1" "$1.gz"
+		gunzip "$1.gz"
+	fi
+}
+
+function padnum {
+	printf %03d "$1"
+}
+
+function set_image_extension {
+	local imagefile="$1"; shift
+	local imagetype="$(file "$imagefile"|egrep -oi 'jpeg|jpg|png|gif' | tr '[:upper:]' '[:lower:]')"
+	local extension=bin
+
+	infoe "Renaming $imagefile"
+
+	case "$imagetype" in
+		jpeg|jpg)
+			extension=jpg ;;
+		png)
+			extension=png ;;
+		gif)
+			extension=gif ;;
+		*)
+			warne "Could not determine extension for $1"
+			return ;;
+	esac
+
+	mv "$imagefile" "$imagefile.$extension"
+
+}
+
+function download_chapter_page {
+	local pageurl="$1"; shift
+	local targetfile="$1"; shift
+
+	wgetdl "$targetfile" "$pageurl"
+
+	local imgurl="$(grep '<img' "$targetfile"|grep 'id="image"'|grep -oP 'src="[^"]+')"
+
+	debuge "Cutting $imgurl"
+
+	imgurl="${imgurl:5}"
+
+	debuge "$imgurl : $targetfile"
+	wgetdl "$targetfile" "$imgurl"
+	set_image_extension "$targetfile"
+
+}
+
+function download_chapter {
+	local chapter_url="$1"; shift
+	local base_url="$(dirname "$chapter_url")"
+	local targetdir="$1"; shift
+	local dlfile="$targetdir/fpage.html"
+
+	mkdir -p "$targetdir"
+
+	wgetdl "$dlfile" "$chapter_url"
+
+	local pagecount="$(grep -oP 'of\s*\d+' "$dlfile"|sort|uniq|cut -d' ' -f2)"
+
+	local i=0
+	while [[ "$i" -lt "$pagecount" ]]; do
+		i=$((i+1))
+		download_chapter_page "$base_url/$i.html" "$targetdir/page_$(padnum "$i")"
+	done
+}
+
+function download_all_chapters {
+	local i=0
+	while read LINKLINE; do
+		i=$((i+1))
+		download_chapter "$LINKLINE" "$D_TARGET/chapter_$(padnum "$i")"
+	done < <(tac "$F_LINKS")
+}
+
+function main {
+	UAGENT="User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0"
+
+	U_MAINPAGE="$1"; shift
+	H_MANGA="$(echo "$U_MAINPAGE"|md5sum)"
+	H_MANGA="${H_MANGA:0:6}"
+	D_TARGET="$(varify_fil "$H_MANGA-$U_MAINPAGE")"
+	F_MAIN="$D_TARGET/frontpage.html"
+	F_LINKS="$D_TARGET/links.txt"
+
+	mkdir -p "$D_TARGET"
+
+	get_mainList
+	extract_links "$F_MAIN" "$F_LINKS"
+	download_all_chapters
+}
+
+notest main "$@"
