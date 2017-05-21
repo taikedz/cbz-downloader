@@ -6,6 +6,16 @@
 #
 # Get all pages from a MangaFox commic to a local directory
 #
+# USAGE
+#
+# 	mfcom URL [ START [END] ]
+#
+# Specify the URL of the main manga page
+#
+# Optionally specify the start chapter
+#
+# Optionally specify the end chapter
+#
 ###/doc
 
 set -euo pipefail
@@ -16,11 +26,11 @@ set -euo pipefail
 
 BBVERSION_MAJOR=0
 BBVERSION_MINOR=1
-BBVERSION_POINT=0
+BBVERSION_POINT=1
 BBVERSION_FLAG=dev
 BBVERSION_PROGRAM=mfcom
 BBVERSION_BUILDDATE=2017-05-21
-BBVERSION_BUILD=40
+BBVERSION_BUILD=44
 
 function bbns_version_infoe {
 	type infoe 2>&1|if grep 'not found' -q; then
@@ -367,8 +377,26 @@ function download_all_chapters {
 	local i=0
 	while read LINKLINE; do
 		i=$((i+1))
+
+		if [[ -n  "$STARTINDEX" ]]; then
+			if [[ ! "$i" -ge "$STARTINDEX" ]]; then continue; fi
+
+			if [[ -n "$ENDINDEX" ]]; then
+				if [[ ! "$i" -le "$ENDINDEX" ]]; then continue; fi
+			fi
+		fi
+		
 		download_chapter "$LINKLINE" "$D_TARGET/chapter_$(padnum "$i")"
+
 	done < <(tac "$F_LINKS")
+}
+
+function numcheck {
+	local tocheck="$1"; shift
+
+	if [[ ! "$tocheck" =~ ^[0-9]*$ ]]; then
+		faile Invalid "$*"
+	fi
 }
 
 function main {
@@ -380,6 +408,13 @@ function main {
 	UAGENT="User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0"
 
 	U_MAINPAGE="$1"; shift
+
+	STARTINDEX="${1:-}"
+	ENDINDEX="${2:-}"
+
+	numcheck "$STARTINDEX" start index
+	numcheck "$ENDINDEX" end index
+
 	H_MANGA="$(echo "$U_MAINPAGE"|md5sum)"
 	H_MANGA="${H_MANGA:0:6}"
 	D_TARGET="$(varify_fil "$H_MANGA-$U_MAINPAGE")"
