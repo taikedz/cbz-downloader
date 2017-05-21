@@ -20,7 +20,7 @@ BBVERSION_POINT=0
 BBVERSION_FLAG=dev
 BBVERSION_PROGRAM=mfcom
 BBVERSION_BUILDDATE=2017-05-21
-BBVERSION_BUILD=39
+BBVERSION_BUILD=40
 
 function bbns_version_infoe {
 	type infoe 2>&1|if grep 'not found' -q; then
@@ -372,6 +372,11 @@ function download_all_chapters {
 }
 
 function main {
+	if [[ -z "$*" ]]; then
+		printhelp
+		exit
+	fi
+
 	UAGENT="User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0"
 
 	U_MAINPAGE="$1"; shift
