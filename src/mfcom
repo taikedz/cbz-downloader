@@ -167,3 +167,7 @@ function main {
 }
 
 notest main "$@"
+
+#for i in 1 2 3 4 5 ; do (n=005; cd chapter_; pwd; img2pdf -o 15sai_.pdf *.jpg); done
+#mv */*.pdf ./
+#rm chapter_* -r frontpage.html links.txt 
