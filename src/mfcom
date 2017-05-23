@@ -111,9 +111,13 @@ function download_chapter {
 	done
 
 	if hasbin img2pdf; then
-		img2pdf -o "$(varify_fil "$targetdir").pdf" "$targetdir"/*."$lastextension" && {
-			rm -r "$targetdir"
-		}
+		local chapdir="$(basename "$targetdir")"
+		(
+			cd "$targetdir/.."
+			img2pdf -o "$(varify_fil "$chapdir").pdf" "$chapdir"/*."$lastextension" && {
+				rm -r "$chapdir"
+			}
+		)
 	fi
 }
 

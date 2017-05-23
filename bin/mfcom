@@ -30,7 +30,7 @@ BBVERSION_POINT=2
 BBVERSION_FLAG=release
 BBVERSION_PROGRAM=mfcom
 BBVERSION_BUILDDATE=2017-05-23
-BBVERSION_BUILD=47
+BBVERSION_BUILD=49
 
 function bbns_version_infoe {
 	type infoe 2>&1|if grep 'not found' -q; then
@@ -428,9 +428,13 @@ function download_chapter {
 	done
 
 	if hasbin img2pdf; then
-		img2pdf -o "$(varify_fil "$targetdir").pdf" "$targetdir"/*."$lastextension" && {
-			rm -r "$targetdir"
-		}
+		local chapdir="$(basename "$targetdir")"
+		(
+			cd "$targetdir/.."
+			img2pdf -o "$(varify_fil "$chapdir").pdf" "$chapdir"/*."$lastextension" && {
+				rm -r "$chapdir"
+			}
+		)
 	fi
 }
 
