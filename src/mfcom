@@ -21,7 +21,7 @@
 set -euo pipefail
 
 #%include version.sh notest.sh
-#%include bashout.sh autohelp.sh varify.sh
+#%include bashout.sh autohelp.sh varify.sh getbin.sh
 
 function wgetdl {
 	local downloadfile="$1"; shift
@@ -72,6 +72,7 @@ function set_image_extension {
 
 	mv "$imagefile" "$imagefile.$extension"
 
+	lastextension="$extension"
 }
 
 function download_chapter_page {
@@ -89,7 +90,6 @@ function download_chapter_page {
 	debuge "$imgurl : $targetfile"
 	wgetdl "$targetfile" "$imgurl"
 	set_image_extension "$targetfile"
-
 }
 
 function download_chapter {
@@ -109,6 +109,10 @@ function download_chapter {
 		i=$((i+1))
 		download_chapter_page "$base_url/$i.html" "$targetdir/page_$(padnum "$i")"
 	done
+
+	img2pdf -o "$(varify_fil "$targetdir").pdf" "$targetdir"/*."$lastextension" && {
+		rm -r "$targetdir"
+	}
 }
 
 function download_all_chapters {
@@ -168,6 +172,3 @@ function main {
 
 notest main "$@"
 
-#for i in 1 2 3 4 5 ; do (n=005; cd chapter_; pwd; img2pdf -o 15sai_.pdf *.jpg); done
-#mv */*.pdf ./
-#rm chapter_* -r frontpage.html links.txt 
