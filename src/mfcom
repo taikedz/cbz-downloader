@@ -110,9 +110,11 @@ function download_chapter {
 		download_chapter_page "$base_url/$i.html" "$targetdir/page_$(padnum "$i")"
 	done
 
-	img2pdf -o "$(varify_fil "$targetdir").pdf" "$targetdir"/*."$lastextension" && {
-		rm -r "$targetdir"
-	}
+	if hasbin img2pdf; then
+		img2pdf -o "$(varify_fil "$targetdir").pdf" "$targetdir"/*."$lastextension" && {
+			rm -r "$targetdir"
+		}
+	fi
 }
 
 function download_all_chapters {
