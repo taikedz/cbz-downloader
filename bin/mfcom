@@ -26,15 +26,15 @@ set -euo pipefail
 
 BBVERSION_MAJOR=0
 BBVERSION_MINOR=1
-BBVERSION_POINT=1
-BBVERSION_FLAG=dev
+BBVERSION_POINT=2
+BBVERSION_FLAG=release
 BBVERSION_PROGRAM=mfcom
-BBVERSION_BUILDDATE=2017-05-21
-BBVERSION_BUILD=44
+BBVERSION_BUILDDATE=2017-05-23
+BBVERSION_BUILD=47
 
 function bbns_version_infoe {
 	type infoe 2>&1|if grep 'not found' -q; then
-		echo "$*" >&2
+		echo "$*"
 	else
 		infoe "$*"
 	fi
@@ -54,16 +54,15 @@ if [[ "$*" =~ --version ]]; then
 fi
 ### notest FUNCTION ARGUMENTS Usage:bbuild
 #
-# This function performs a simple test to see if the "BBSETTESTMODE" variable
-# is set to the string "test mode"
+# This function performs a simple test to see if the "BBSETTESTMODE" variable is set to the string "test mode"
 #
-# If so, it does NOT call the function. In all other cases, the function is
-# called with the arguments.
+# If so, it does NOT call the function. In all other cases, the function is called with the arguments.
 #
-# The purpose of this function is to allow a simple method to encourage testability
+# The purpose of this function is to allow a simple method to encourage testability: source notest.sh in your test script, and set the BBTESTMODE variable to "test mode" to prevent the script from running.
 #
-# Example:
+# Example test target script, "test_target.sh":
 #
+#	#%include notest.sh
 #
 # 	function action1 { ... }
 #
@@ -76,8 +75,19 @@ fi
 #
 # 	notest main "$@"
 #
-# You can source a file with this kind of structure without the risk of triggering
-# its runtime. This allows the file to be sourced and tested safely.
+# Example test script:
+#
+# 	. ~/.local/lib/bbuild/notest.sh
+# 	BBTESTMODE="test mode"
+#
+# 	# main will not run
+# 	. test_target.sh
+#
+# 	action1 || echo failed action1
+#
+# 	action2 || echo failed action2
+#
+# You can source a file with this kind of structure without the risk of triggering its runtime. This allows the file to be sourced and tested safely.
 #
 ###/doc
 
@@ -252,7 +262,8 @@ function printhelp {
 #
 ###/doc
 if [[ "$@" =~ --help ]]; then
-	printhelp
+	cols="$(tput cols)"
+	printhelp | fold -w "$cols" -s
 	exit 0
 fi
 #!/bin/bash
@@ -283,6 +294,50 @@ function varify_var {
 
 function varify_fil {
 	echo "$*" | sed -r 's/[^a-zA-Z0-9_.-]/_/g'
+}
+#!/bin/bash
+
+### getbin COMMANDS ... Usage:bbuild
+#
+# Return the first existing binary
+#
+# Useful for finding an appropriate binary when you know
+# different systems may supply binaries under different names.
+#
+# Returns the full path from `which` for the first executable
+# encountered.
+#
+# Example:
+#
+# 	getbin markdown_py markdown ./mymarkdown
+#
+# Tries in turn to get a `markdown_py`, then a `markdown`, and then a local `./mymarkdown`
+#
+###/doc
+
+function getbin {
+	local BINEXE=
+	for binname in "$@"; do
+		# Some implementations of `which` print error messages
+		# Not useful here.
+		BINEXE=$(which "$binname" 2>/dev/null)
+
+		if [[ -n "$BINEXE" ]]; then
+			echo "$BINEXE"
+			return 0
+		fi
+	done
+	return 1
+}
+
+### hasbin COMMANDS ... Usage:bbuild
+#
+# Determine if at least one of the binaries listed is present and installed on the system
+#
+###/doc
+
+function hasbin {
+	[[ -n "$(getbin "$@")" ]]
 }
 
 function wgetdl {
@@ -334,6 +389,7 @@ function set_image_extension {
 
 	mv "$imagefile" "$imagefile.$extension"
 
+	lastextension="$extension"
 }
 
 function download_chapter_page {
@@ -351,7 +407,6 @@ function download_chapter_page {
 	debuge "$imgurl : $targetfile"
 	wgetdl "$targetfile" "$imgurl"
 	set_image_extension "$targetfile"
-
 }
 
 function download_chapter {
@@ -371,6 +426,12 @@ function download_chapter {
 		i=$((i+1))
 		download_chapter_page "$base_url/$i.html" "$targetdir/page_$(padnum "$i")"
 	done
+
+	if hasbin img2pdf; then
+		img2pdf -o "$(varify_fil "$targetdir").pdf" "$targetdir"/*."$lastextension" && {
+			rm -r "$targetdir"
+		}
+	fi
 }
 
 function download_all_chapters {
@@ -429,3 +490,4 @@ function main {
 }
 
 notest main "$@"
+
