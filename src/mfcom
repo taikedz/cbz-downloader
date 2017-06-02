@@ -16,6 +16,19 @@
 #
 # Optionally specify the end chapter
 #
+# CONFIGURATION
+#
+# Set the following environment variables to configure mfcom:
+#
+# MFCOM_UAGENT="<user agent string>"
+# 	set a custom user agent string instead of the default (Mozilla 52)
+#
+# MFCOM_MAKE_PDF=true
+# 	tries to compile to PDF
+# 	requires img2pdf, otherwise uses the default action
+#
+# 	The default action is to create a CBZ file (which is in fact a .tar.gz file)
+#
 ###/doc
 
 set -euo pipefail
@@ -25,7 +38,7 @@ set -euo pipefail
 
 function wgetdl {
 	local downloadfile="$1"; shift
-	wget --header="$UAGENT" --header="Accept: text/html, image/*" --quiet -O "$downloadfile" "$@"
+	wget --header="$MFCOM_UAGENT" --header="Accept: text/html, image/*" --quiet -O "$downloadfile" "$@"
 	do_unzip "$downloadfile"
 }
 
@@ -110,11 +123,25 @@ function download_chapter {
 		download_chapter_page "$base_url/$i.html" "$targetdir/page_$(padnum "$i")"
 	done
 
-	if hasbin img2pdf; then
+	local archivename="$(varify_fil "$chapdir")"
+	if hasbin img2pdf && [[ "${MFCOM_MAKE_PDF:-}" = true ]]; then
 		local chapdir="$(basename "$targetdir")"
 		(
 			cd "$targetdir/.."
-			img2pdf -o "$(varify_fil "$chapdir").pdf" "$chapdir"/*."$lastextension" && {
+			img2pdf -o "$archivename.pdf" "$chapdir"/*."$lastextension" && {
+				rm -r "$chapdir"
+			}
+		)
+	else
+		(
+			# Comic book archives need a special comic book reader
+			#  but they are recognized by eBook readers, and can be unpacked
+			#  since they're literally a TAR.GZ file
+			#  and displayed in name order ...!
+			cd "$targetdir/../$chapdir"
+			tar czf "$archivename.cbz" *."$lastextension" && {
+				mv "$archivename.cbz" ../
+				cd ../
 				rm -r "$chapdir"
 			}
 		)
@@ -125,9 +152,10 @@ function download_all_chapters {
 	local i=0
 	while read LINKLINE; do
 		i=$((i+1))
+		chappat="/c[0-9]*$i/?"
 
 		if [[ -n  "$STARTINDEX" ]]; then
-			if [[ ! "$i" -ge "$STARTINDEX" ]]; then continue; fi
+			if [[ ! "$LINKLINE" =~ $chappat ]]; then continue; fi
 
 			if [[ -n "$ENDINDEX" ]]; then
 				if [[ ! "$i" -le "$ENDINDEX" ]]; then continue; fi
@@ -153,7 +181,7 @@ function main {
 		exit
 	fi
 
-	UAGENT="User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0"
+	: ${MFCOM_UAGENT="User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0"}
 
 	U_MAINPAGE="$1"; shift
 
