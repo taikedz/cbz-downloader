@@ -1,5 +1,6 @@
 #!/bin/bash
 
+thisdir="$(dirname "$0")"
 bindir="$HOME/.local/bin"
 
 if [[ "$UID" = 0 ]]; then
@@ -8,4 +9,4 @@ else
 	mkdir -p "$bindir"
 fi
 
-cp bin/mfcom "$bindir"
+cp "$thisdir/bin/mfcom" "$bindir"
