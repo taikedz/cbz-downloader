@@ -110,6 +110,7 @@ function download_chapter {
 	local base_url="$(dirname "$chapter_url")"
 	local targetdir="$1"; shift
 	local dlfile="$targetdir/fpage.html"
+	local chapdir="$(basename "$targetdir")"
 
 	mkdir -p "$targetdir"
 
@@ -125,7 +126,6 @@ function download_chapter {
 
 	local archivename="$(varify_fil "$chapdir")"
 	if hasbin img2pdf && [[ "${MFCOM_MAKE_PDF:-}" = true ]]; then
-		local chapdir="$(basename "$targetdir")"
 		(
 			cd "$targetdir/.."
 			img2pdf -o "$archivename.pdf" "$chapdir"/*."$lastextension" && {
