@@ -57,7 +57,7 @@ function extract_links {
 	grep "$U_MAINPAGE_NOSCHEME" "$sourcefile" | \
 		grep -Po 'a href="'"$U_MAINPAGE_NOSCHEME"'.*?"' | \
 		grep -Po "$U_MAINPAGE_NOSCHEME[^\"]+" | \
-		sed -r 's|^|http:|' \
+		sed -r 's|^|http:|' | tac \
 		> "$targetfile"
 }
 
@@ -174,7 +174,7 @@ function download_all_chapters {
 		
 		download_chapter "$LINKLINE" "$D_TARGET/chapter_$(padnum "$i")"
 
-	done < <(tac "$F_LINKS")
+	done < "$F_LINKS"
 }
 
 function numcheck {
