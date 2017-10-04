@@ -43,8 +43,8 @@ BBVERSION_MINOR=0
 BBVERSION_POINT=0
 BBVERSION_FLAG=release
 BBVERSION_PROGRAM=mfcom
-BBVERSION_BUILDDATE=2017-08-12
-BBVERSION_BUILD=2
+BBVERSION_BUILDDATE=2017-10-04
+BBVERSION_BUILD=8
 
 function bbns_version_infoe {
 	type infoe 2>&1|if grep 'not found' -q; then
@@ -361,7 +361,7 @@ function hasbin {
 
 function wgetdl {
 	local downloadfile="$1"; shift
-	wget --header="$MFCOM_UAGENT" --header="Accept: text/html, image/*" --quiet -O "$downloadfile" "$@"
+	wget --header="$MFCOM_UAGENT" --header="Accept: text/html, image/*" --quiet -O "$downloadfile" --no-check-certificate "$@" || :
 	do_unzip "$downloadfile"
 }
 
@@ -373,7 +373,11 @@ function extract_links {
 	local sourcefile="$1"; shift
 	local targetfile="$1"; shift
 
-	grep "$U_MAINPAGE" "$sourcefile" | grep -Po 'a href="'"$U_MAINPAGE"'.*?"'|grep -Po "$U_MAINPAGE[^\"]+" > "$targetfile"
+	grep "$U_MAINPAGE_NOSCHEME" "$sourcefile" | \
+		grep -Po 'a href="'"$U_MAINPAGE_NOSCHEME"'.*?"' | \
+		grep -Po "$U_MAINPAGE_NOSCHEME[^\"]+" | \
+		sed -r 's|^|http:|' \
+		> "$targetfile"
 }
 
 function do_unzip {
@@ -445,6 +449,7 @@ function download_chapter {
 	while [[ "$i" -lt "$pagecount" ]]; do
 		i=$((i+1))
 		download_chapter_page "$base_url/$i.html" "$targetdir/page_$(padnum "$i")"
+		sleep "$WAIT_TIME"
 	done
 
 	local archivename="$(varify_fil "$chapdir")"
@@ -478,10 +483,11 @@ function download_all_chapters {
 		chappat="/c[0-9]*$i/?"
 
 		if [[ -n  "$STARTINDEX" ]]; then
-			if [[ ! "$LINKLINE" =~ $chappat ]]; then continue; fi
+			#if [[ ! "$LINKLINE" =~ $chappat ]]; then continue; fi
+			if [[ "$i" -lt "$STARTINDEX" ]]; then continue; fi
 
 			if [[ -n "$ENDINDEX" ]]; then
-				if [[ ! "$i" -le "$ENDINDEX" ]]; then continue; fi
+				if [[ ! "$i" -le "$ENDINDEX" ]]; then break; fi
 			fi
 		fi
 		
@@ -506,7 +512,12 @@ function main {
 
 	: ${MFCOM_UAGENT="User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0"}
 
+	: ${WAIT_TIME=2}
+	echo "WAIT_TIME=$WAIT_TIME"
+
 	U_MAINPAGE="$1"; shift
+	# Mangafox has started generating urls without schemes
+	U_MAINPAGE_NOSCHEME="$(echo "$U_MAINPAGE"|sed -r 's|https?://|//|')"
 
 	STARTINDEX="${1:-}"
 	ENDINDEX="${2:-}"

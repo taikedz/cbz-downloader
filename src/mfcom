@@ -29,6 +29,10 @@
 #
 # 	The default action is to create a CBZ file (which is in fact a .tar.gz file)
 #
+# MFCOM_WAIT=<int>
+# 	time in seconds to wait between operations ; default is 1
+# 	mangafox seems to throttle access from IPs that download too much too fast
+#
 ###/doc
 
 set -euo pipefail
@@ -38,7 +42,7 @@ set -euo pipefail
 
 function wgetdl {
 	local downloadfile="$1"; shift
-	wget --header="$MFCOM_UAGENT" --header="Accept: text/html, image/*" --quiet -O "$downloadfile" "$@"
+	wget --header="$MFCOM_UAGENT" --header="Accept: text/html, image/*" --quiet -O "$downloadfile" --no-check-certificate "$@" || :
 	do_unzip "$downloadfile"
 }
 
@@ -50,7 +54,11 @@ function extract_links {
 	local sourcefile="$1"; shift
 	local targetfile="$1"; shift
 
-	grep "$U_MAINPAGE" "$sourcefile" | grep -Po 'a href="'"$U_MAINPAGE"'.*?"'|grep -Po "$U_MAINPAGE[^\"]+" > "$targetfile"
+	grep "$U_MAINPAGE_NOSCHEME" "$sourcefile" | \
+		grep -Po 'a href="'"$U_MAINPAGE_NOSCHEME"'.*?"' | \
+		grep -Po "$U_MAINPAGE_NOSCHEME[^\"]+" | \
+		sed -r 's|^|http:|' \
+		> "$targetfile"
 }
 
 function do_unzip {
@@ -122,6 +130,7 @@ function download_chapter {
 	while [[ "$i" -lt "$pagecount" ]]; do
 		i=$((i+1))
 		download_chapter_page "$base_url/$i.html" "$targetdir/page_$(padnum "$i")"
+		sleep "$MFCOM_WAIT"
 	done
 
 	local archivename="$(varify_fil "$chapdir")"
@@ -155,10 +164,11 @@ function download_all_chapters {
 		chappat="/c[0-9]*$i/?"
 
 		if [[ -n  "$STARTINDEX" ]]; then
-			if [[ ! "$LINKLINE" =~ $chappat ]]; then continue; fi
+			#if [[ ! "$LINKLINE" =~ $chappat ]]; then continue; fi
+			if [[ "$i" -lt "$STARTINDEX" ]]; then continue; fi
 
 			if [[ -n "$ENDINDEX" ]]; then
-				if [[ ! "$i" -le "$ENDINDEX" ]]; then continue; fi
+				if [[ ! "$i" -le "$ENDINDEX" ]]; then break; fi
 			fi
 		fi
 		
@@ -183,7 +193,12 @@ function main {
 
 	: ${MFCOM_UAGENT="User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0"}
 
+	: ${MFCOM_WAIT=2}
+	echo "MFCOM_WAIT=$MFCOM_WAIT"
+
 	U_MAINPAGE="$1"; shift
+	# Mangafox has started generating urls without schemes
+	U_MAINPAGE_NOSCHEME="$(echo "$U_MAINPAGE"|sed -r 's|https?://|//|')"
 
 	STARTINDEX="${1:-}"
 	ENDINDEX="${2:-}"
