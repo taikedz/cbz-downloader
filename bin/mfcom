@@ -49,7 +49,7 @@ BBVERSION_POINT=0
 BBVERSION_FLAG=release
 BBVERSION_PROGRAM=mfcom
 BBVERSION_BUILDDATE=2017-10-05
-BBVERSION_BUILD=11
+BBVERSION_BUILD=12
 
 function bbns_version_infoe {
 	type infoe 2>&1|if grep 'not found' -q; then
@@ -411,7 +411,7 @@ function set_image_extension {
 		gif)
 			extension=gif ;;
 		*)
-			warne "Could not determine extension for $1"
+			warne "Could not determine extension for $imagefile"
 			return ;;
 	esac
 

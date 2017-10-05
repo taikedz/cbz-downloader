@@ -88,7 +88,7 @@ function set_image_extension {
 		gif)
 			extension=gif ;;
 		*)
-			warne "Could not determine extension for $1"
+			warne "Could not determine extension for $imagefile"
 			return ;;
 	esac
 
