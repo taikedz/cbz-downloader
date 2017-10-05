@@ -49,7 +49,7 @@ BBVERSION_POINT=0
 BBVERSION_FLAG=release
 BBVERSION_PROGRAM=mfcom
 BBVERSION_BUILDDATE=2017-10-05
-BBVERSION_BUILD=10
+BBVERSION_BUILD=11
 
 function bbns_version_infoe {
 	type infoe 2>&1|if grep 'not found' -q; then
@@ -366,7 +366,7 @@ function hasbin {
 
 function wgetdl {
 	local downloadfile="$1"; shift
-	wget --header="$MFCOM_UAGENT" --header="Accept: text/html, image/*" --quiet -O "$downloadfile" --no-check-certificate "$@" || :
+	wget --header="User-Agent: $MFCOM_UAGENT" --header="Accept: text/html, image/*" --quiet -O "$downloadfile" --no-check-certificate "$@" || :
 	do_unzip "$downloadfile"
 }
 
@@ -515,7 +515,7 @@ function main {
 		exit
 	fi
 
-	: ${MFCOM_UAGENT="User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0"}
+	: ${MFCOM_UAGENT="Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0"}
 
 	: ${MFCOM_WAIT=2}
 	echo "MFCOM_WAIT=$MFCOM_WAIT"
