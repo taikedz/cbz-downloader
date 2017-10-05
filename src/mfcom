@@ -23,15 +23,16 @@
 # MFCOM_UAGENT="<user agent string>"
 # 	set a custom user agent string instead of the default (Mozilla 52)
 #
-# MFCOM_MAKE_PDF=true
-# 	tries to compile to PDF
-# 	requires img2pdf, otherwise uses the default action
+# MFCOM_MAKE_ARCHIVE={pdf | cbz}
+# 	tries to compile to PDF or CBZ comic archive
 #
-# 	The default action is to create a CBZ file (which is in fact a .tar.gz file)
+# 	PDF requires img2pdf
+# 	CBZ requires zip
 #
 # MFCOM_WAIT=<int>
 # 	time in seconds to wait between operations ; default is 1
 # 	mangafox seems to throttle access from IPs that download too much too fast
+# 	set to 0 for no delay
 #
 ###/doc
 
@@ -134,27 +135,27 @@ function download_chapter {
 	done
 
 	local archivename="$(varify_fil "$chapdir")"
-	if hasbin img2pdf && [[ "${MFCOM_MAKE_PDF:-}" = true ]]; then
+	if hasbin img2pdf && [[ "${MFCOM_MAKE_ARCHIVE:-}" = pdf ]]; then
 		(
 			cd "$targetdir/.."
 			img2pdf -o "$archivename.pdf" "$chapdir"/*."$lastextension" && {
 				rm -r "$chapdir"
 			}
 		)
-	else
+	elif hasbin zip && [[ "${MFCOM_MAKE_ARCHIVE:-}" = cbz ]]; then
 		(
 			# Comic book archives need a special comic book reader
 			#  but they are recognized by eBook readers, and can be unpacked
-			#  since they're literally a TAR.GZ file
-			#  and displayed in name order ...!
+			#  since they're literally a ZIP file
+			#  and displayed in name order
 			cd "$targetdir/../$chapdir"
-			tar czf "$archivename.cbz" *."$lastextension" && {
+			zip "$archivename.cbz" *."$lastextension" && {
 				mv "$archivename.cbz" ../
 				cd ../
 				rm -r "$chapdir"
 			}
 		)
-	fi
+	fi # else just left as a bunch of image files
 }
 
 function download_all_chapters {
