@@ -36,3 +36,4 @@ Third argument is the end index; requires start index to have been specified
 
 Numbering does not follow chapter numbers; instead it uses the entry order number from the list of chapters (to be fixed soon)
 
+Previous version of mfcom would create tar.gz-based CBZ files; added a utility to convert TGZ to ZIP

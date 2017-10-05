@@ -1,0 +1,191 @@
+#!/bin/bash
+
+### TGZ to ZIP converter Uage:help
+#
+# Convert a .tgz/.tar.gz file to a ZIP file
+#
+# By default, will not remove the tgz file ; set remove_after=true environment variable to remove the tgz on success
+#
+# By default, tries to detect and ".tar.gz" in the original filename; override this using the env variable ext_tgz
+#
+# By default, appends ".zip" to the destination filename; override this using the env variable ext_zip
+#
+#
+# Example: converting tgz-based CBZ files to ZIP-based CBZ files:
+#
+# 	export ext_tgz=.cbz
+# 	export ext_zip=.cbz
+# 	export remove_after=true
+# 	tgz-zip *.cbz
+#
+# Or, in one line:
+#
+# 	ext_tgz=.cbz ext_zip=.cbz remove_after=true tgz-zip *.cbz
+#
+###/doc
+
+#!/bin/bash
+
+### printhelp Usage:bbuild
+# Write your help as documentation comments in your script
+#
+# If you need to output the help from a running script, call the
+# `printhelp` function and it will print the help documentation
+# in the current script to stdout
+#
+# A help comment looks like this:
+#
+#	### <title> Usage:help
+#	#
+#	# <some content>
+#	#
+#	# end with "###/doc" on its own line (whitespaces before
+#	# and after are OK)
+#	#
+#	###/doc
+#
+###/doc
+
+CHAR='#'
+
+function printhelp {
+	local USAGESTRING=help
+	local TARGETFILE=$0
+	if [[ -n "$*" ]]; then USAGESTRING="$1" ; shift; fi
+	if [[ -n "$*" ]]; then TARGETFILE="$1" ; shift; fi
+
+        echo -e "\n$(basename "$TARGETFILE")\n===\n"
+        local SECSTART='^\s*'"$CHAR$CHAR$CHAR"'\s+(.+?)\s+Usage:'"$USAGESTRING"'\s*$'
+        local SECEND='^\s*'"$CHAR$CHAR$CHAR"'\s*/doc\s*$'
+        local insec="$(mktemp --tmpdir)"; rm "$insec"
+        cat "$TARGETFILE" | while read secline; do
+                if [[ "$secline" =~ $SECSTART ]]; then
+                        touch "$insec"
+                        echo -e "\n${BASH_REMATCH[1]}\n---\n"
+                elif [[ -f $insec ]]; then
+                        if [[ "$secline" =~ $SECEND ]]; then
+                                rm "$insec"
+                        else
+				echo "$secline" | sed -r "s/^\s*$CHAR//g"
+                        fi
+                fi
+        done
+        if [[ -f "$insec" ]]; then
+                echo "WARNING: Non-terminated help block." 1>&2
+		rm "$insec"
+        fi
+	echo ""
+}
+
+### automatic help Usage:main
+#
+# automatically call help if "--help" is detected in arguments
+#
+###/doc
+if [[ "$@" =~ --help ]]; then
+	cols="$(tput cols)"
+	printhelp | fold -w "$cols" -s
+	exit 0
+fi
+
+set -euo pipefail
+
+#!/bin/bash
+
+### abspath Usage:bbuild
+# Returns the absolute path of a file/directory
+#
+# Exposes two functions
+#
+#     abspath
+#     abspath_collapse
+#
+# Do not use the python-based 'abspath' for intensitve resolution;
+# instead, use native 'abspath_collapse' which is at least 170 times
+# more efficient, at the cost of perhaps being potentially
+# dumber (simply collapses '/./' and '/../').
+# 
+# Neither utility expands softlinks.
+#
+# If python is not found, abspath falls back to abspath_collapse systematically.
+###/doc
+
+function abspath {
+	local newvar=${1//"'"/"\\'"}
+	(
+		set +eu
+		if which python >/dev/null 2>&1; then
+			python  -c "import os ; print os.path.abspath('$newvar')"
+		elif which python3 >/dev/null 2>&1 ; then
+			python3 -c "import os ; print(os.path.abspath('$newvar') )"
+		else
+			abspath_collapse "$newvar"
+		fi
+	)
+}
+
+# More efficient by a factor of at least 170:1
+# compared to spinning up a python process every time
+function abspath_collapse {
+	local workpath="$1"
+	if [[ "${workpath:0:1}" != "/" ]]; then workpath="$PWD/$workpath"; fi
+	for x in {1..50}; do # set a limit on how many iterations - only very stupid paths will get us here.
+		if [[ "$workpath" =~ '/../' ]] || [[ "$workpath" =~ '/./' ]]; then
+			workpath="$(echo "$workpath"|sed -r -e 's#/./#/#g' -e 's#([^/]+)/../#\1/#g' -e 's#/.$##' -e 's#([^/]+)/..$#\1#' )"
+		else
+			echo "$workpath"
+			return 0
+		fi
+	done
+	return 1 # hopefully we never get here
+}
+
+: ${ext_tgz=.tar.gz}
+: ${ext_zip=.zip}
+
+makezip() {
+	local zipname="$1"; shift
+
+	# Initialize to avoid undefined variable
+	local filearray=("$zipname")
+
+	for x in * .*; do
+		if [[ "$x" = . ]] || [[ "$x" = .. ]]; then continue; fi
+
+		filearray=("${filearray[@]}" "$x")
+	done
+
+	zip -r "${filearray[@]}"
+}
+
+core_name() {
+	local filename="$1"; shift
+
+	filename="${filename%$ext_tgz}"
+
+	echo "$filename"
+}
+
+main() {
+	for item in "$@"; do
+		local core_name="$(core_name "$item")"
+		local filepath="$(abspath "$item")"
+		local targetdir="$PWD"
+
+		local opdir="$(mktemp -d)"
+
+		# Unpack in temp, repack to destination
+		pushd "$opdir"
+		tar xzf "$filepath" && makezip "$targetdir/${core_name}$ext_zip" || { popd; continue; }
+
+		# Cleanup
+		popd
+		rm -rf "$opdir"
+		if [[ "${remove_after:-}" = true ]]; then
+			rm "$filepath"
+		fi
+
+	done
+}
+
+main "$@"
