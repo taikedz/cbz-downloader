@@ -1,6 +1,6 @@
 #!/bin/bash
 
-### TGZ to ZIP converter Uage:help
+### TGZ to ZIP converter Uasge:help
 #
 # Convert a .tgz/.tar.gz file to a ZIP file
 #
@@ -35,6 +35,9 @@ set -euo pipefail
 
 makezip() {
 	local zipname="$1"; shift
+	if [[ -e "$zipname" ]]; then
+		zipname="${zipname}-2"
+	fi
 
 	# Initialize to avoid undefined variable
 	local filearray=("$zipname")
