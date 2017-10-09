@@ -40,9 +40,15 @@ set -euo pipefail
 
 #%include version.sh notest.sh
 #%include bashout.sh autohelp.sh varify.sh getbin.sh
+#%include comicarchive
 
 function wgetdl {
 	local downloadfile="$1"; shift
+	if [[ -z "$*" ]]; then
+		warne "Error downloading $downloadfile"
+		return 404
+	fi
+
 	wget --header="User-Agent: $MFCOM_UAGENT" --header="Accept: text/html, image/*" --quiet -O "$downloadfile" --no-check-certificate "$@" || :
 	do_unzip "$downloadfile"
 }
@@ -62,15 +68,22 @@ function extract_links {
 		> "$targetfile"
 }
 
+function unzero() {
+	echo "$1"|sed -r s/^0+//
+}
+
+function isbigger() {
+	local bigger="$(unzero "$1")"; shift
+	local smaller="$(unzero "$1")"; shift
+
+	python -c "if $bigger <= $smaller: exit(1)"
+}
+
 function do_unzip {
 	if (file "$1"|grep gzip -q); then
 		mv "$1" "$1.gz"
 		gunzip "$1.gz"
 	fi
-}
-
-function padnum {
-	printf %03d "$1"
 }
 
 function set_image_extension {
@@ -102,6 +115,7 @@ function download_chapter_page {
 	local targetfile="$1"; shift
 
 	wgetdl "$targetfile" "$pageurl"
+	[[ "$?" = 404 ]] && return 404
 
 	local imgurl="$(grep '<img' "$targetfile"|grep 'id="image"'|grep -oP 'src="[^"]+')"
 
@@ -111,7 +125,12 @@ function download_chapter_page {
 
 	debuge "$imgurl : $targetfile"
 	wgetdl "$targetfile" "$imgurl"
+	[[ "$?" = 404 ]] && return 404
 	set_image_extension "$targetfile"
+}
+
+padnum() {
+	printf "%03d" "$1"
 }
 
 function download_chapter {
@@ -135,45 +154,33 @@ function download_chapter {
 	done
 
 	local archivename="$(varify_fil "$chapdir")"
-	if hasbin img2pdf && [[ "${MFCOM_MAKE_ARCHIVE:-}" = pdf ]]; then
-		(
-			cd "$targetdir/.."
-			img2pdf -o "$archivename.pdf" "$chapdir"/*."$lastextension" && {
-				rm -r "$chapdir"
-			}
-		)
-	elif hasbin zip && [[ "${MFCOM_MAKE_ARCHIVE:-}" = cbz ]]; then
-		(
-			# Comic book archives need a special comic book reader
-			#  but they are recognized by eBook readers, and can be unpacked
-			#  since they're literally a ZIP file
-			#  and displayed in name order
-			cd "$targetdir/../$chapdir"
-			zip "$archivename.cbz" *."$lastextension" && {
-				mv "$archivename.cbz" ../
-				cd ../
-				rm -r "$chapdir"
-			}
-		)
-	fi # else just left as a bunch of image files
+	if [[ "${MFCOM_MAKE_ARCHIVE:-}" = pdf ]]; then
+		make_archive:pdf "$targetdir"
+	elif [[ "${MFCOM_MAKE_ARCHIVE:-}" = cbz ]]; then
+		make_archive:cbz "$targetdir"
+	fi
 }
 
 function download_all_chapters {
 	local i=0
 	while read LINKLINE; do
-		i=$((i+1))
-		chappat="/c[0-9]*$i/?"
+		chappat="/c([0-9.]+)/?"
+		[[ "$LINKLINE" =~ $chappat ]]
+		i="${BASH_REMATCH[1]}"
+		if [[ -z "$i" ]]; then
+			warne "Could not extract chapter number from $LINKLINE"
+			continue
+		fi
 
 		if [[ -n  "$STARTINDEX" ]]; then
-			#if [[ ! "$LINKLINE" =~ $chappat ]]; then continue; fi
-			if [[ "$i" -lt "$STARTINDEX" ]]; then continue; fi
+			if isbigger "$STARTINDEX" "$i"; then continue; fi
 
 			if [[ -n "$ENDINDEX" ]]; then
-				if [[ ! "$i" -le "$ENDINDEX" ]]; then break; fi
+				if ! isbigger "$ENDINDEX" "$i" ; then break; fi
 			fi
 		fi
 		
-		download_chapter "$LINKLINE" "$D_TARGET/chapter_$(padnum "$i")"
+		download_chapter "$LINKLINE" "$D_TARGET/chapter_${i}"
 
 	done < "$F_LINKS"
 }
@@ -207,9 +214,7 @@ function main {
 	numcheck "$STARTINDEX" start index
 	numcheck "$ENDINDEX" end index
 
-	H_MANGA="$(echo "$U_MAINPAGE"|md5sum)"
-	H_MANGA="${H_MANGA:0:6}"
-	D_TARGET="$(varify_fil "$H_MANGA-$U_MAINPAGE")"
+	D_TARGET="$(varify_fil "${U_MAINPAGE##*mangafox.me/manga/}")"
 	F_MAIN="$D_TARGET/frontpage.html"
 	F_LINKS="$D_TARGET/links.txt"
 

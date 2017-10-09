@@ -1,3 +1,3 @@
 BBPATH="$BBPATH:./"
 BUILDOUTD=bin/
-BBFILES=(src/mfcom src/tgz-zip)
+BBFILES=(src/mfcom src/tgz-zip src/comicarchive)

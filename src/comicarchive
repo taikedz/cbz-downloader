@@ -1,0 +1,82 @@
+#!/bin/bash
+
+### comicarchive Usage:help
+#
+# When run as standalone, the comicarchive command/subroutine turns a folder of
+#
+# 	chapter_X/page_*
+#
+# into a single chapter_X.pdf or chpater_X.cbz
+#
+# Set NOREMOVE=true to prevent removeal of original files
+#
+# Set NOERMOVE=false to remove files after archive is made
+#
+###/doc
+
+#%include getbin.sh bashout.sh colours.sh abspath.sh
+
+make_archive:remove() {
+	local targetdir="$1"; shift
+	[[ "${NOREMOVE:-}" = true ]] || { cd ..; rm -r "$targetdir" ; }
+}
+
+make_archive:pdf() {
+	local targetdir="$(abspath "$1")"; shift
+	local archivename="$targetdir.pdf"
+
+	if hasbin img2pdf; then
+		(
+		cd "$targetdir/"
+		img2pdf -o "$archivename" page_* && {
+			cd ..
+			make_archive:remove "$targetdir"
+		}
+		)
+	else
+		warne "'img2pdf' command not installed"
+	fi
+}
+
+make_archive:cbz() {
+	local targetdir="$(abspath "$1")"; shift
+	local archivename="$targetdir.cbz"
+
+	if hasbin zip; then
+		(
+		# Comic book archives need a special comic book reader
+		#  but they are recognized by eBook readers, and can be unpacked
+		#  since they're literally a ZIP file
+		#  and displayed in name order
+		cd "$targetdir/"
+		zip "$archivename" page_* && {
+			cd ..
+			make_archive:remove "$targetdir"
+		}
+		)
+	else
+		warne "'zip' command not installed"
+	fi
+}
+
+make_archive:main() {
+	local archivetype="$1"; shift
+	local targetdir="$1"; shift
+
+	case "$archivetype" in
+	pdf)
+		make_archive:pdf "$targetdir"
+		;;
+	cbz)
+		make_archive:cbz "$targetdir"
+		;;
+	*)
+		faile "Wrong archive type name [$archivetype] - choose 'cbz' or 'pdf'"
+		;;
+	esac
+}
+
+if [[ "$(basename "$0")" = comicarchive ]]; then
+	: ${NOREMOVE=true}
+	make_archive:main "$@"
+fi

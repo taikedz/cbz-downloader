@@ -1,0 +1,284 @@
+#!/bin/bash
+
+### comicarchive Usage:help
+#
+# When run as standalone, the comicarchive command/subroutine turns a folder of
+#
+# 	chapter_X/page_*
+#
+# into a single chapter_X.pdf or chpater_X.cbz
+#
+# Set NOREMOVE=true to prevent removeal of original files
+#
+# Set NOERMOVE=false to remove files after archive is made
+#
+###/doc
+
+#!/bin/bash
+
+### getbin COMMANDS ... Usage:bbuild
+#
+# Return the first existing binary
+#
+# Useful for finding an appropriate binary when you know
+# different systems may supply binaries under different names.
+#
+# Returns the full path from `which` for the first executable
+# encountered.
+#
+# Example:
+#
+# 	getbin markdown_py markdown ./mymarkdown
+#
+# Tries in turn to get a `markdown_py`, then a `markdown`, and then a local `./mymarkdown`
+#
+###/doc
+
+function getbin {
+	local BINEXE=
+	for binname in "$@"; do
+		# Some implementations of `which` print error messages
+		# Not useful here.
+		BINEXE=$(which "$binname" 2>/dev/null)
+
+		if [[ -n "$BINEXE" ]]; then
+			echo "$BINEXE"
+			return 0
+		fi
+	done
+	return 1
+}
+
+### hasbin COMMANDS ... Usage:bbuild
+#
+# Determine if at least one of the binaries listed is present and installed on the system
+#
+###/doc
+
+function hasbin {
+	[[ -n "$(getbin "$@")" ]]
+}
+#!/bin/bash
+
+
+MODE_DEBUG=no
+MODE_DEBUG_VERBOSE=no
+
+### debuge MESSAGE Usage:bbuild
+# print a blue debug message to stderr
+# only prints if MODE_DEBUG is set to "yes"
+###/doc
+function debuge {
+	if [[ "$MODE_DEBUG" = yes ]]; then
+		echo -e "${CBBLU}DEBUG:$CBLU$*$CDEF" 1>&2
+	fi
+}
+
+### infoe MESSAGE Usage:bbuild
+# print a green informational message to stderr
+###/doc
+function infoe {
+	echo -e "$CGRN$*$CDEF" 1>&2
+}
+
+### warne MESSAGE Usage:bbuild
+# print a yellow warning message to stderr
+###/doc
+function warne {
+	echo -e "${CBYEL}WARN:$CYEL $*$CDEF" 1>&2
+}
+
+### faile [CODE] MESSAGE Usage:bbuild
+# print a red failure message to stderr and exit with CODE
+# CODE must be a number
+# if no code is specified, error code 127 is used
+###/doc
+function faile {
+	local ERCODE=127
+	local numpat='^[0-9]+$'
+
+	if [[ "$1" =~ $numpat ]]; then
+		ERCODE="$1"; shift
+	fi
+
+	echo "${CBRED}ERROR FAIL:$CRED$*$CDEF" 1>&2
+	exit $ERCODE
+}
+
+function dumpe {
+	echo -n "[1;35m$*" 1>&2
+	echo -n "[0;35m" 1>&2
+	cat - 1>&2
+	echo -n "[0m" 1>&2
+}
+
+function breake {
+	if [[ "$MODE_DEBUG" != yes ]]; then
+		return
+	fi
+
+	read -p "${CRED}BREAKPOINT: $* >$CDEF " >&2
+	if [[ "$REPLY" =~ $(echo 'quit|exit|stop') ]]; then
+		faile "ABORT"
+	fi
+}
+
+### Auto debug Usage:main
+# When included, bashout processes a special "--debug" flag
+#
+# It does not remove the debug flag from arguments.
+###/doc
+
+if [[ "$*" =~ --debug ]]; then
+	MODE_DEBUG=yes
+
+	if [[ "$MODE_DEBUG_VERBOSE" = yes ]]; then
+		set -x
+	fi
+fi
+#!/bin/bash
+
+### Colours for bash Usage:bbuild
+# A series of colour flags for use in outputs.
+#
+# Example:
+# 	
+# 	echo "${CRED}Some red text ${CBBLU} some blue text $CDEF some text in the terminal's default colour"
+#
+# Colours available:
+#
+# CDEF -- switches to the terminal default
+#
+# CRED, CBRED -- red and bright/bold red
+# CGRN, CBGRN -- green and bright/bold green
+# CYEL, CBYEL -- yellow and bright/bold yellow
+# CBLU, CBBLU -- blue and bright/bold blue
+# CPUR, CBPUR -- purple and bright/bold purple
+#
+###/doc
+
+export CRED="[31m"
+export CGRN="[32m"
+export CYEL="[33m"
+export CBLU="[34m"
+export CPUR="[35m"
+export CBRED="[1;31m"
+export CBGRN="[1;32m"
+export CBYEL="[1;33m"
+export CBBLU="[1;34m"
+export CBPUR="[1;35m"
+export CDEF="[0m"
+#!/bin/bash
+
+### abspath Usage:bbuild
+# Returns the absolute path of a file/directory
+#
+# Exposes two functions
+#
+#     abspath
+#     abspath_collapse
+#
+# Do not use the python-based 'abspath' for intensitve resolution;
+# instead, use native 'abspath_collapse' which is at least 170 times
+# more efficient, at the cost of perhaps being potentially
+# dumber (simply collapses '/./' and '/../').
+# 
+# Neither utility expands softlinks.
+#
+# If python is not found, abspath falls back to abspath_collapse systematically.
+###/doc
+
+function abspath {
+	local newvar=${1//"'"/"\\'"}
+	(
+		set +eu
+		if which python >/dev/null 2>&1; then
+			python  -c "import os ; print os.path.abspath('$newvar')"
+		elif which python3 >/dev/null 2>&1 ; then
+			python3 -c "import os ; print(os.path.abspath('$newvar') )"
+		else
+			abspath_collapse "$newvar"
+		fi
+	)
+}
+
+# More efficient by a factor of at least 170:1
+# compared to spinning up a python process every time
+function abspath_collapse {
+	local workpath="$1"
+	if [[ "${workpath:0:1}" != "/" ]]; then workpath="$PWD/$workpath"; fi
+	for x in {1..50}; do # set a limit on how many iterations - only very stupid paths will get us here.
+		if [[ "$workpath" =~ '/../' ]] || [[ "$workpath" =~ '/./' ]]; then
+			workpath="$(echo "$workpath"|sed -r -e 's#/./#/#g' -e 's#([^/]+)/../#\1/#g' -e 's#/.$##' -e 's#([^/]+)/..$#\1#' )"
+		else
+			echo "$workpath"
+			return 0
+		fi
+	done
+	return 1 # hopefully we never get here
+}
+
+make_archive:remove() {
+	local targetdir="$1"; shift
+	[[ "${NOREMOVE:-}" = true ]] || { cd ..; rm -r "$targetdir" ; }
+}
+
+make_archive:pdf() {
+	local targetdir="$(abspath "$1")"; shift
+	local archivename="$targetdir.pdf"
+
+	if hasbin img2pdf; then
+		(
+		cd "$targetdir/"
+		img2pdf -o "$archivename" page_* && {
+			cd ..
+			make_archive:remove "$targetdir"
+		}
+		)
+	else
+		warne "'img2pdf' command not installed"
+	fi
+}
+
+make_archive:cbz() {
+	local targetdir="$(abspath "$1")"; shift
+	local archivename="$targetdir.cbz"
+
+	if hasbin zip; then
+		(
+		# Comic book archives need a special comic book reader
+		#  but they are recognized by eBook readers, and can be unpacked
+		#  since they're literally a ZIP file
+		#  and displayed in name order
+		cd "$targetdir/"
+		zip "$archivename" page_* && {
+			cd ..
+			make_archive:remove "$targetdir"
+		}
+		)
+	else
+		warne "'zip' command not installed"
+	fi
+}
+
+make_archive:main() {
+	local archivetype="$1"; shift
+	local targetdir="$1"; shift
+
+	case "$archivetype" in
+	pdf)
+		make_archive:pdf "$targetdir"
+		;;
+	cbz)
+		make_archive:cbz "$targetdir"
+		;;
+	*)
+		faile "Wrong archive type name [$archivetype] - choose 'cbz' or 'pdf'"
+		;;
+	esac
+}
+
+if [[ "$(basename "$0")" = comicarchive ]]; then
+	: ${NOREMOVE=true}
+	make_archive:main "$@"
+fi
