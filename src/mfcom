@@ -202,7 +202,6 @@ function main {
 	: ${MFCOM_UAGENT="Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0"}
 
 	: ${MFCOM_WAIT=2}
-	echo "MFCOM_WAIT=$MFCOM_WAIT"
 
 	U_MAINPAGE="$1"; shift
 	# Mangafox has started generating urls without schemes
@@ -215,11 +214,14 @@ function main {
 	numcheck "$ENDINDEX" end index
 
 	D_TARGET="$(varify_fil "${U_MAINPAGE##*mangafox.me/manga/}")"
+	D_TARGET="${D_TARGET%_}"
 	F_MAIN="$D_TARGET/frontpage.html"
 	F_LINKS="$D_TARGET/links.txt"
 
 	# =====================
-	echo "Archive type: MFCOM_MAKE_ARCHIVE=${MFCOM_MAKE_ARCHIVE:-}"
+	echo "MFCOM_WAIT=$MFCOM_WAIT"
+	echo "MFCOM_MAKE_ARCHIVE=${MFCOM_MAKE_ARCHIVE:-}"
+	echo "Downloading to: $D_TARGET"
 	sleep 2
 
 	mkdir -p "$D_TARGET"
