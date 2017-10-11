@@ -218,6 +218,10 @@ function main {
 	F_MAIN="$D_TARGET/frontpage.html"
 	F_LINKS="$D_TARGET/links.txt"
 
+	# =====================
+	echo "Archive type: MFCOM_MAKE_ARCHIVE=${MFCOM_MAKE_ARCHIVE:-}"
+	sleep 2
+
 	mkdir -p "$D_TARGET"
 
 	get_mainList

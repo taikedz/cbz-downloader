@@ -48,8 +48,8 @@ BBVERSION_MINOR=0
 BBVERSION_POINT=0
 BBVERSION_FLAG=release
 BBVERSION_PROGRAM=mfcom
-BBVERSION_BUILDDATE=2017-10-09
-BBVERSION_BUILD=25
+BBVERSION_BUILDDATE=2017-10-11
+BBVERSION_BUILD=26
 
 function bbns_version_infoe {
 	type infoe 2>&1|if grep 'not found' -q; then
@@ -669,6 +669,10 @@ function main {
 	D_TARGET="$(varify_fil "${U_MAINPAGE##*mangafox.me/manga/}")"
 	F_MAIN="$D_TARGET/frontpage.html"
 	F_LINKS="$D_TARGET/links.txt"
+
+	# =====================
+	echo "Archive type: MFCOM_MAKE_ARCHIVE=${MFCOM_MAKE_ARCHIVE:-}"
+	sleep 2
 
 	mkdir -p "$D_TARGET"
 
