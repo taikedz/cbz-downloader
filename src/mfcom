@@ -69,7 +69,12 @@ function extract_links {
 }
 
 function unzero() {
-	echo "$1"|sed -r s/^0+//
+        local unzeroed="$(echo "$1"|sed -r s/^0+//)"
+        if [[ -z "$unzeroed" ]]; then
+                echo "0"
+        else
+                echo "$unzeroed"
+        fi
 }
 
 function isbigger() {
