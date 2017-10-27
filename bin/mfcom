@@ -49,7 +49,7 @@ BBVERSION_POINT=0
 BBVERSION_FLAG=release
 BBVERSION_PROGRAM=mfcom
 BBVERSION_BUILDDATE=2017-10-27
-BBVERSION_BUILD=29
+BBVERSION_BUILD=30
 
 function bbns_version_infoe {
 	type infoe 2>&1|if grep 'not found' -q; then
@@ -520,7 +520,7 @@ function extract_links {
 		> "$targetfile"
 }
 
-function unzero() {
+unzero() {
         local unzeroed="$(echo "$1"|sed -r s/^0+//)"
         if [[ -z "$unzeroed" ]]; then
                 echo "0"
@@ -529,11 +529,12 @@ function unzero() {
         fi
 }
 
-function isbigger() {
-	local bigger="$(unzero "$1")"; shift
-	local smaller="$(unzero "$1")"; shift
+is_bigger_or_eq() {
+	[[ ! $(dc -e "$1 $2 - p") =~ - ]] || return 1
+}
 
-	python -c "if $bigger <= $smaller: exit(1)"
+is_smaller() {
+	! is_bigger_or_eq "$1" "$2"
 }
 
 function do_unzip {
@@ -619,25 +620,27 @@ function download_chapter {
 }
 
 function download_all_chapters {
-	local i=0
+	local chapnum=0
 	while read LINKLINE; do
 		chappat="/c([0-9.]+)/?"
 		[[ "$LINKLINE" =~ $chappat ]]
-		i="${BASH_REMATCH[1]}"
-		if [[ -z "$i" ]]; then
+		chapnum="${BASH_REMATCH[1]}"
+		if [[ -z "$chapnum" ]]; then
 			warne "Could not extract chapter number from $LINKLINE"
 			continue
 		fi
 
 		if [[ -n  "$STARTINDEX" ]]; then
-			if isbigger "$STARTINDEX" "$i"; then continue; fi
+			# chapter number < desired start index
+			if is_smaller "$chapnum" "$STARTINDEX"; then continue; fi
 
 			if [[ -n "$ENDINDEX" ]]; then
-				if ! isbigger "$ENDINDEX" "$i" ; then break; fi
+				# chapter number >= desired end index
+				if is_bigger_or_eq "$chapnum" "$ENDINDEX" ; then break; fi
 			fi
 		fi
 		
-		download_chapter "$LINKLINE" "$D_TARGET/chapter_${i}"
+		download_chapter "$LINKLINE" "$D_TARGET/chapter_${chapnum}"
 
 	done < "$F_LINKS"
 }
