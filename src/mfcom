@@ -42,7 +42,7 @@ set -euo pipefail
 #%include bashout.sh autohelp.sh varify.sh getbin.sh
 #%include comicarchive
 
-function wgetdl {
+wgetdl() {
 	local downloadfile="$1"; shift
 	if [[ -z "$*" ]]; then
 		warne "Error downloading $downloadfile"
@@ -53,11 +53,11 @@ function wgetdl {
 	do_unzip "$downloadfile"
 }
 
-function get_mainList {
+get_mainList() {
 	wgetdl "$F_MAIN" "$U_MAINPAGE"
 }
 
-function extract_links {
+extract_links() {
 	local sourcefile="$1"; shift
 	local targetfile="$1"; shift
 
@@ -85,14 +85,14 @@ is_smaller() {
 	! is_bigger_or_eq "$1" "$2"
 }
 
-function do_unzip {
+do_unzip() {
 	if (file "$1"|grep gzip -q); then
 		mv "$1" "$1.gz"
 		gunzip "$1.gz"
 	fi
 }
 
-function set_image_extension {
+set_image_extension() {
 	local imagefile="$1"; shift
 	local imagetype="$(file "$imagefile"|egrep -oi 'jpeg|jpg|png|gif' | tr '[:upper:]' '[:lower:]')"
 	local extension=bin
@@ -116,7 +116,7 @@ function set_image_extension {
 	lastextension="$extension"
 }
 
-function download_chapter_page {
+download_chapter_page() {
 	local pageurl="$1"; shift
 	local targetfile="$1"; shift
 
@@ -139,7 +139,7 @@ padnum() {
 	printf "%03d" "$1"
 }
 
-function download_chapter {
+download_chapter() {
 	local chapter_url="$1"; shift
 	local base_url="$(dirname "$chapter_url")"
 	local targetdir="$1"; shift
@@ -167,7 +167,7 @@ function download_chapter {
 	fi
 }
 
-function download_all_chapters {
+download_all_chapters() {
 	local chapnum=0
 	while read LINKLINE; do
 		chappat="/c([0-9.]+)/?"
@@ -193,7 +193,7 @@ function download_all_chapters {
 	done < "$F_LINKS"
 }
 
-function numcheck {
+numcheck() {
 	local tocheck="$1"; shift
 
 	if [[ ! "$tocheck" =~ ^[0-9]*$ ]]; then
@@ -201,7 +201,7 @@ function numcheck {
 	fi
 }
 
-function main {
+main() {
 	if [[ -z "$*" ]]; then
 		printhelp
 		exit
