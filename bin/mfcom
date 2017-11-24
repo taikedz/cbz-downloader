@@ -38,6 +38,9 @@
 
 set -euo pipefail
 
+SURLFILE="source.url"
+LASTINDEXFILE="last-tried.txt"
+
 ### Helper for version management Usage:bbuild
 # Requires a version.bbuild in the current directory to work
 ###/doc
@@ -48,8 +51,8 @@ BBVERSION_MINOR=0
 BBVERSION_POINT=0
 BBVERSION_FLAG=release
 BBVERSION_PROGRAM=mfcom
-BBVERSION_BUILDDATE=2017-10-27
-BBVERSION_BUILD=29
+BBVERSION_BUILDDATE=2017-11-24
+BBVERSION_BUILD=35
 
 function bbns_version_infoe {
 	type infoe 2>&1|if grep 'not found' -q; then
@@ -594,10 +597,17 @@ function download_chapter {
 	local chapter_url="$1"; shift
 	local base_url="$(dirname "$chapter_url")"
 	local targetdir="$1"; shift
+	local chapnum="$1"; shift
+
+	targetdir="$targetdir/${D_TARGET}-${chapnum}"
+
 	local dlfile="$targetdir/fpage.html"
 	local chapdir="$(basename "$targetdir")"
 
 	mkdir -p "$targetdir"
+
+	# Register the last attempt now, in case fail before end
+	echo "$chapnum" > "$F_LASTDONE"
 
 	wgetdl "$dlfile" "$chapter_url"
 
@@ -609,6 +619,10 @@ function download_chapter {
 		download_chapter_page "$base_url/$i.html" "$targetdir/page_$(padnum "$i")"
 		sleep "$MFCOM_WAIT"
 	done
+
+	# FIXME this will not work with non-int chapters ... !
+	local cn="$(unzero "$chapnum")"
+	echo "$((cn+1))" > "$F_LASTDONE"
 
 	local archivename="$(varify_fil "$chapdir")"
 	if [[ "${MFCOM_MAKE_ARCHIVE:-}" = pdf ]]; then
@@ -637,7 +651,7 @@ function download_all_chapters {
 			fi
 		fi
 		
-		download_chapter "$LINKLINE" "$D_TARGET/chapter_${i}"
+		download_chapter "$LINKLINE" "$D_TARGET" "${i}"
 
 	done < "$F_LINKS"
 }
@@ -646,21 +660,21 @@ function numcheck {
 	local tocheck="$1"; shift
 
 	if [[ ! "$tocheck" =~ ^[0-9]*$ ]]; then
-		faile Invalid "$*"
+		faile "Invalid number: $*"
 	fi
 }
 
-function main {
-	if [[ -z "$*" ]]; then
-		printhelp
-		exit
-	fi
-
-	: ${MFCOM_UAGENT="Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0"}
-
-	: ${MFCOM_WAIT=2}
-
+function get_main_url {
 	U_MAINPAGE="$1"; shift
+
+	if [[ -d "$U_MAINPAGE" ]]; then
+		U_MAINPAGE="$(cat "$U_MAINPAGE/$SURLFILE")"
+	elif [[ ! "$U_MAINPAGE" =~ ^https?:// ]]; then
+		faile "Invalid page URL $U_MAINPAGE"
+	fi
+}
+
+function setup_configuration {
 	# Mangafox has started generating urls without schemes
 	U_MAINPAGE_NOSCHEME="$(echo "$U_MAINPAGE"|sed -r 's|https?://|//|')"
 
@@ -674,14 +688,37 @@ function main {
 	D_TARGET="${D_TARGET%_}"
 	F_MAIN="$D_TARGET/frontpage.html"
 	F_LINKS="$D_TARGET/links.txt"
+	F_SOURCEURL="$D_TARGET/$SURLFILE"
+	F_LASTDONE="$D_TARGET/$LASTINDEXFILE"
+
+	mkdir -p "$D_TARGET"
+
+	[[ -f "$F_SOURCEURL" ]] || echo "$U_MAINPAGE" > "$F_SOURCEURL"
+	[[ -z "$STARTINDEX" ]] && [[ -f "$F_LASTDONE" ]] && STARTINDEX="$(cat "$F_LASTDONE")" || :
+}
+
+function main {
+	if [[ -z "$*" ]]; then
+		printhelp
+		exit
+	fi
+
+	: ${MFCOM_UAGENT="Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0"}
+
+	: ${MFCOM_WAIT=2}
+
+	get_main_url "$1"; shift
+	setup_configuration "${1:-}" "${2:-}"
+	shift 2 || :
 
 	# =====================
 	echo "MFCOM_WAIT=$MFCOM_WAIT"
 	echo "MFCOM_MAKE_ARCHIVE=${MFCOM_MAKE_ARCHIVE:-}"
-	echo "Downloading to: $D_TARGET"
+	echo "Downloading from: $U_MAINPAGE"
+	echo "Downloading to:   $D_TARGET"
+	echo "Starting at: $STARTINDEX"
+	echo "Ending at:   $ENDINDEX"
 	sleep 2
-
-	mkdir -p "$D_TARGET"
 
 	get_mainList
 	extract_links "$F_MAIN" "$F_LINKS"

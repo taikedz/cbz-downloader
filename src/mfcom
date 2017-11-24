@@ -147,7 +147,7 @@ function download_chapter {
 	local targetdir="$1"; shift
 	local chapnum="$1"; shift
 
-	targetdir="$targetdir/chapter_${chapnum}"
+	targetdir="$targetdir/${D_TARGET}-${chapnum}"
 
 	local dlfile="$targetdir/fpage.html"
 	local chapdir="$(basename "$targetdir")"
@@ -262,9 +262,10 @@ function main {
 	# =====================
 	echo "MFCOM_WAIT=$MFCOM_WAIT"
 	echo "MFCOM_MAKE_ARCHIVE=${MFCOM_MAKE_ARCHIVE:-}"
-	echo "Downloading to: $D_TARGET"
+	echo "Downloading from: $U_MAINPAGE"
+	echo "Downloading to:   $D_TARGET"
 	echo "Starting at: $STARTINDEX"
-	echo "Ending at: $ENDINDEX"
+	echo "Ending at:   $ENDINDEX"
 	sleep 2
 
 	get_mainList
