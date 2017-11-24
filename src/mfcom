@@ -202,7 +202,7 @@ download_all_chapters() {
 			fi
 		fi
 		
-		download_chapter "$LINKLINE" "$D_TARGET" "${i}"
+		download_chapter "$LINKLINE" "$D_TARGET" "${chapnum}"
 
 	done < "$F_LINKS"
 }
@@ -230,7 +230,11 @@ set_indices() {
 	STARTINDEX="${1:-}"
 	ENDINDEX="${2:-}"
 
+	[[ -n "$STARTINDEX" ]] || return 0
+
 	numcheck "$STARTINDEX" start index
+
+	[[ -n "$ENDINDEX" ]] || return 0
 
 	if [[ "$ENDINDEX" =~ ^\+ ]]; then
 		ENDINDEX="${ENDINDEX#+}"
@@ -238,7 +242,7 @@ set_indices() {
 		ENDINDEX=$((STARTINDEX + ENDINDEX))
 	else
 		numcheck "$ENDINDEX" end index
-		isbigger "$STARTINDEX" "$ENDINDEX" || faile "Start index must be smaller than end index"
+		is_smaller "$ENDINDEX" "$STARTINDEX" || faile "Start index must be smaller than end index"
 	fi
 }
 
