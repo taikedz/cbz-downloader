@@ -8,13 +8,13 @@
 #
 # USAGE
 #
-# 	mfcom URL [ START [END] ]
+# 	mfcom URL [ START [[+]END] ]
 #
 # Specify the URL of the main manga page
 #
 # Optionally specify the start chapter
 #
-# Optionally specify the end chapter
+# Optionally specify the end chapter, or a "+" followed by the number of chapters to download
 #
 # CONFIGURATION
 #
@@ -26,8 +26,8 @@
 # MFCOM_MAKE_ARCHIVE={pdf | cbz}
 # 	tries to compile to PDF or CBZ comic archive
 #
-# 	PDF requires img2pdf
-# 	CBZ requires zip
+# 	PDF requires img2pdf (apt install img2pdf)
+# 	CBZ requires zip     (apt install zip)
 #
 # MFCOM_WAIT=<int>
 # 	time in seconds to wait between operations ; default is 1
@@ -37,6 +37,9 @@
 ###/doc
 
 set -euo pipefail
+
+SURLFILE="source.url"
+LASTINDEXFILE="last-tried.txt"
 
 #%include version.sh notest.sh
 #%include bashout.sh autohelp.sh varify.sh getbin.sh
@@ -97,15 +100,13 @@ set_image_extension() {
 	local imagetype="$(file "$imagefile"|egrep -oi 'jpeg|jpg|png|gif' | tr '[:upper:]' '[:lower:]')"
 	local extension=bin
 
-	infoe "Renaming $imagefile"
+	debuge "Renaming $imagefile"
 
 	case "$imagetype" in
 		jpeg|jpg)
 			extension=jpg ;;
-		png)
-			extension=png ;;
-		gif)
-			extension=gif ;;
+		png|gif)
+			extension="$imagetype" ;;
 		*)
 			warne "Could not determine extension for $imagefile"
 			return ;;
@@ -120,8 +121,10 @@ download_chapter_page() {
 	local pageurl="$1"; shift
 	local targetfile="$1"; shift
 
+	infoe "Download [$pageurl] to [$targetfile]"
+
 	wgetdl "$targetfile" "$pageurl"
-	[[ "$?" = 404 ]] && return 404
+	[[ "$?" = 404 ]] && faile 404 "Page not found"
 
 	local imgurl="$(grep '<img' "$targetfile"|grep 'id="image"'|grep -oP 'src="[^"]+')"
 
@@ -131,7 +134,7 @@ download_chapter_page() {
 
 	debuge "$imgurl : $targetfile"
 	wgetdl "$targetfile" "$imgurl"
-	[[ "$?" = 404 ]] && return 404
+	[[ "$?" = 404 ]] && faile 404 "Image not found"
 	set_image_extension "$targetfile"
 }
 
@@ -143,10 +146,17 @@ download_chapter() {
 	local chapter_url="$1"; shift
 	local base_url="$(dirname "$chapter_url")"
 	local targetdir="$1"; shift
+	local chapnum="$1"; shift
+
+	targetdir="$targetdir/${D_TARGET}-${chapnum}"
+
 	local dlfile="$targetdir/fpage.html"
 	local chapdir="$(basename "$targetdir")"
 
 	mkdir -p "$targetdir"
+
+	# Register the last attempt now, in case fail before end
+	echo "$chapnum" > "$F_LASTDONE"
 
 	wgetdl "$dlfile" "$chapter_url"
 
@@ -158,6 +168,10 @@ download_chapter() {
 		download_chapter_page "$base_url/$i.html" "$targetdir/page_$(padnum "$i")"
 		sleep "$MFCOM_WAIT"
 	done
+
+	# FIXME this will not work with non-int chapters ... !
+	local cn="$(unzero "$chapnum")"
+	echo "$((cn+1))" > "$F_LASTDONE"
 
 	local archivename="$(varify_fil "$chapdir")"
 	if [[ "${MFCOM_MAKE_ARCHIVE:-}" = pdf ]]; then
@@ -188,7 +202,7 @@ download_all_chapters() {
 			fi
 		fi
 		
-		download_chapter "$LINKLINE" "$D_TARGET/chapter_${chapnum}"
+		download_chapter "$LINKLINE" "$D_TARGET" "${i}"
 
 	done < "$F_LINKS"
 }
@@ -197,8 +211,64 @@ numcheck() {
 	local tocheck="$1"; shift
 
 	if [[ ! "$tocheck" =~ ^[0-9]*$ ]]; then
-		faile Invalid "$*"
+		faile "Invalid number: $*"
 	fi
+}
+
+get_main_url() {
+	U_MAINPAGE="$1"; shift
+
+	if [[ -d "$U_MAINPAGE" ]] && [[ -f "$U_MAINPAGE/$SURLFILE" ]]; then
+		U_MAINPAGE="$(cat "$U_MAINPAGE/$SURLFILE")"
+
+	elif [[ ! "$U_MAINPAGE" =~ ^https?:// ]]; then
+		faile "Invalid page URL $U_MAINPAGE"
+	fi
+}
+
+set_indices() {
+	STARTINDEX="${1:-}"
+	ENDINDEX="${2:-}"
+
+	numcheck "$STARTINDEX" start index
+
+	if [[ "$ENDINDEX" =~ ^\+ ]]; then
+		ENDINDEX="${ENDINDEX#+}"
+		numcheck "$ENDINDEX" end index length
+		ENDINDEX=$((STARTINDEX + ENDINDEX))
+	else
+		numcheck "$ENDINDEX" end index
+		isbigger "$STARTINDEX" "$ENDINDEX" || faile "Start index must be smaller than end index"
+	fi
+}
+
+setup_configuration() {
+	# Mangafox has started generating urls without schemes
+	U_MAINPAGE_NOSCHEME="$(echo "$U_MAINPAGE"|sed -r 's|https?://|//|')"
+
+	set_indices "${1:-}" "${2:-}"
+
+	D_TARGET="$(varify_fil "${U_MAINPAGE##*mangafox.me/manga/}")"
+	D_TARGET="${D_TARGET%_}"
+	F_MAIN="$D_TARGET/frontpage.html"
+	F_LINKS="$D_TARGET/links.txt"
+	F_SOURCEURL="$D_TARGET/$SURLFILE"
+	F_LASTDONE="$D_TARGET/$LASTINDEXFILE"
+
+	mkdir -p "$D_TARGET"
+
+	[[ -f "$F_SOURCEURL" ]] || echo "$U_MAINPAGE" > "$F_SOURCEURL"
+	[[ -z "$STARTINDEX" ]] && [[ -f "$F_LASTDONE" ]] && STARTINDEX="$(cat "$F_LASTDONE")" || :
+}
+
+announce_setup() {
+	echo "MFCOM_WAIT=$MFCOM_WAIT"
+	echo "MFCOM_MAKE_ARCHIVE=${MFCOM_MAKE_ARCHIVE:-}"
+	echo "Downloading from: $U_MAINPAGE"
+	echo "Downloading to:   $D_TARGET"
+	echo "Starting at: $STARTINDEX"
+	echo "Ending at:   $ENDINDEX"
+	sleep 2
 }
 
 main() {
@@ -211,28 +281,11 @@ main() {
 
 	: ${MFCOM_WAIT=2}
 
-	U_MAINPAGE="$1"; shift
-	# Mangafox has started generating urls without schemes
-	U_MAINPAGE_NOSCHEME="$(echo "$U_MAINPAGE"|sed -r 's|https?://|//|')"
+	get_main_url "$1"; shift
+	setup_configuration "${1:-}" "${2:-}"
+	shift 2 || :
 
-	STARTINDEX="${1:-}"
-	ENDINDEX="${2:-}"
-
-	numcheck "$STARTINDEX" start index
-	numcheck "$ENDINDEX" end index
-
-	D_TARGET="$(varify_fil "${U_MAINPAGE##*mangafox.me/manga/}")"
-	D_TARGET="${D_TARGET%_}"
-	F_MAIN="$D_TARGET/frontpage.html"
-	F_LINKS="$D_TARGET/links.txt"
-
-	# =====================
-	echo "MFCOM_WAIT=$MFCOM_WAIT"
-	echo "MFCOM_MAKE_ARCHIVE=${MFCOM_MAKE_ARCHIVE:-}"
-	echo "Downloading to: $D_TARGET"
-	sleep 2
-
-	mkdir -p "$D_TARGET"
+	announce_setup
 
 	get_mainList
 	extract_links "$F_MAIN" "$F_LINKS"
