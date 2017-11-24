@@ -215,7 +215,7 @@ function numcheck {
 function get_main_url {
 	U_MAINPAGE="$1"; shift
 
-	if [[ -d "$U_MAINPAGE" ]]; then
+	if [[ -d "$U_MAINPAGE" ]] && [[ -f "$U_MAINPAGE/$SURLFILE" ]]; then
 		U_MAINPAGE="$(cat "$U_MAINPAGE/$SURLFILE")"
 	elif [[ ! "$U_MAINPAGE" =~ ^https?:// ]]; then
 		faile "Invalid page URL $U_MAINPAGE"
@@ -232,6 +232,8 @@ function setup_configuration {
 	numcheck "$STARTINDEX" start index
 	numcheck "$ENDINDEX" end index
 
+	isbigger "$STARTINDEX" "$ENDINDEX" || faile "Start index must be smaller than end index"
+
 	D_TARGET="$(varify_fil "${U_MAINPAGE##*mangafox.me/manga/}")"
 	D_TARGET="${D_TARGET%_}"
 	F_MAIN="$D_TARGET/frontpage.html"
@@ -243,6 +245,16 @@ function setup_configuration {
 
 	[[ -f "$F_SOURCEURL" ]] || echo "$U_MAINPAGE" > "$F_SOURCEURL"
 	[[ -z "$STARTINDEX" ]] && [[ -f "$F_LASTDONE" ]] && STARTINDEX="$(cat "$F_LASTDONE")" || :
+}
+
+announce_setup() {
+	echo "MFCOM_WAIT=$MFCOM_WAIT"
+	echo "MFCOM_MAKE_ARCHIVE=${MFCOM_MAKE_ARCHIVE:-}"
+	echo "Downloading from: $U_MAINPAGE"
+	echo "Downloading to:   $D_TARGET"
+	echo "Starting at: $STARTINDEX"
+	echo "Ending at:   $ENDINDEX"
+	sleep 2
 }
 
 function main {
@@ -259,14 +271,7 @@ function main {
 	setup_configuration "${1:-}" "${2:-}"
 	shift 2 || :
 
-	# =====================
-	echo "MFCOM_WAIT=$MFCOM_WAIT"
-	echo "MFCOM_MAKE_ARCHIVE=${MFCOM_MAKE_ARCHIVE:-}"
-	echo "Downloading from: $U_MAINPAGE"
-	echo "Downloading to:   $D_TARGET"
-	echo "Starting at: $STARTINDEX"
-	echo "Ending at:   $ENDINDEX"
-	sleep 2
+	announce_setup
 
 	get_mainList
 	extract_links "$F_MAIN" "$F_LINKS"

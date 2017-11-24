@@ -52,7 +52,7 @@ BBVERSION_POINT=0
 BBVERSION_FLAG=release
 BBVERSION_PROGRAM=mfcom
 BBVERSION_BUILDDATE=2017-11-24
-BBVERSION_BUILD=35
+BBVERSION_BUILD=36
 
 function bbns_version_infoe {
 	type infoe 2>&1|if grep 'not found' -q; then
@@ -667,7 +667,7 @@ function numcheck {
 function get_main_url {
 	U_MAINPAGE="$1"; shift
 
-	if [[ -d "$U_MAINPAGE" ]]; then
+	if [[ -d "$U_MAINPAGE" ]] && [[ -f "$U_MAINPAGE/$SURLFILE" ]]; then
 		U_MAINPAGE="$(cat "$U_MAINPAGE/$SURLFILE")"
 	elif [[ ! "$U_MAINPAGE" =~ ^https?:// ]]; then
 		faile "Invalid page URL $U_MAINPAGE"
