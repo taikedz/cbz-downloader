@@ -169,10 +169,6 @@ download_chapter() {
 		sleep "$MFCOM_WAIT"
 	done
 
-	# FIXME this will not work with non-int chapters ... !
-	local cn="$(unzero "$chapnum")"
-	echo "$((cn+1))" > "$F_LASTDONE"
-
 	local archivename="$(varify_fil "$chapdir")"
 	if [[ "${MFCOM_MAKE_ARCHIVE:-}" = pdf ]]; then
 		make_archive:pdf "$targetdir"

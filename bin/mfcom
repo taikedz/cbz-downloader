@@ -51,8 +51,8 @@ BBVERSION_MINOR=0
 BBVERSION_POINT=0
 BBVERSION_FLAG=release
 BBVERSION_PROGRAM=mfcom
-BBVERSION_BUILDDATE=2017-11-24
-BBVERSION_BUILD=44
+BBVERSION_BUILDDATE=2017-12-02
+BBVERSION_BUILD=45
 
 function bbns_version_infoe {
 	type infoe 2>&1|if grep 'not found' -q; then
@@ -620,10 +620,6 @@ download_chapter() {
 		download_chapter_page "$base_url/$i.html" "$targetdir/page_$(padnum "$i")"
 		sleep "$MFCOM_WAIT"
 	done
-
-	# FIXME this will not work with non-int chapters ... !
-	local cn="$(unzero "$chapnum")"
-	echo "$((cn+1))" > "$F_LASTDONE"
 
 	local archivename="$(varify_fil "$chapdir")"
 	if [[ "${MFCOM_MAKE_ARCHIVE:-}" = pdf ]]; then
