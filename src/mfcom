@@ -169,6 +169,9 @@ download_chapter() {
 		sleep "$MFCOM_WAIT"
 	done
 
+	warne "Nothing downloaded !"
+	[[ "$i" -gt 0 ]] || return
+
 	local archivename="$(varify_fil "$chapdir")"
 	if [[ "${MFCOM_MAKE_ARCHIVE:-}" = pdf ]]; then
 		make_archive:pdf "$targetdir"
