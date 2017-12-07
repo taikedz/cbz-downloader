@@ -169,8 +169,10 @@ download_chapter() {
 		sleep "$MFCOM_WAIT"
 	done
 
-	warne "Nothing downloaded !"
-	[[ "$i" -gt 0 ]] || return
+	[[ "$i" -gt 0 ]] || {
+		warne "Nothing downloaded !"
+		return
+	}
 
 	local archivename="$(varify_fil "$chapdir")"
 	if [[ "${MFCOM_MAKE_ARCHIVE:-}" = pdf ]]; then
@@ -241,7 +243,7 @@ set_indices() {
 		ENDINDEX=$((STARTINDEX + ENDINDEX))
 	else
 		numcheck "$ENDINDEX" end index
-		is_smaller "$ENDINDEX" "$STARTINDEX" || faile "Start index must be smaller than end index"
+		is_smaller "$STARTINDEX" "$ENDINDEX" || faile "Start index must be smaller than end index"
 	fi
 }
 
@@ -251,7 +253,7 @@ setup_configuration() {
 
 	set_indices "${1:-}" "${2:-}"
 
-	D_TARGET="$(varify_fil "${U_MAINPAGE##*mangafox.me/manga/}")"
+	D_TARGET="$(varify_fil "${U_MAINPAGE##*/manga/}")"
 	D_TARGET="${D_TARGET%_}"
 	F_MAIN="$D_TARGET/frontpage.html"
 	F_LINKS="$D_TARGET/links.txt"
