@@ -14,7 +14,7 @@
 #
 ###/doc
 
-#%include getbin.sh bashout.sh colours.sh abspath.sh
+#%include bincheck.sh out.sh abspath.sh
 
 make_archive:remove() {
 	local targetdir="$1"; shift
@@ -22,10 +22,10 @@ make_archive:remove() {
 }
 
 make_archive:pdf() {
-	local targetdir="$(abspath "$1")"; shift
+	local targetdir="$(abspath:simple "$1")"; shift
 	local archivename="$targetdir.pdf"
 
-	if hasbin img2pdf; then
+	if bincheck:has img2pdf; then
 		(
 		cd "$targetdir/"
 		img2pdf -o "$archivename" page_* && {
@@ -34,15 +34,15 @@ make_archive:pdf() {
 		}
 		)
 	else
-		warne "'img2pdf' command not installed"
+		out:warn "'img2pdf' command not installed"
 	fi
 }
 
 make_archive:cbz() {
-	local targetdir="$(abspath "$1")"; shift
+	local targetdir="$(abspath:simple "$1")"; shift
 	local archivename="$targetdir.cbz"
 
-	if hasbin zip; then
+	if bincheck:has zip; then
 		(
 		# Comic book archives need a special comic book reader
 		#  but they are recognized by eBook readers, and can be unpacked
@@ -55,7 +55,7 @@ make_archive:cbz() {
 		}
 		)
 	else
-		warne "'zip' command not installed"
+		out:warn "'zip' command not installed"
 	fi
 }
 
@@ -71,12 +71,13 @@ make_archive:main() {
 		make_archive:cbz "$targetdir"
 		;;
 	*)
-		faile "Wrong archive type name [$archivetype] - choose 'cbz' or 'pdf'"
+		out:fail "Wrong archive type name [$archivetype] - choose 'cbz' or 'pdf'"
 		;;
 	esac
 }
 
-if [[ "$(basename "$0")" = comicarchive ]]; then
-	: ${NOREMOVE=true}
-	make_archive:main "$@"
+if [[ -z "${NOREMOVE:-}" ]]; then
+	NOREMOVE=false
 fi
+
+runmain comicarchive make_archive:main "$@"

@@ -41,121 +41,115 @@ set -euo pipefail
 SURLFILE="source.url"
 LASTINDEXFILE="last-tried.txt"
 
-### Helper for version management Usage:bbuild
-# Requires a version.bbuild in the current directory to work
-###/doc
-
-#%VERSIONFILE
-BBVERSION_MAJOR=0
-BBVERSION_MINOR=0
-BBVERSION_POINT=0
-BBVERSION_FLAG=release
-BBVERSION_PROGRAM=mfcom
-BBVERSION_BUILDDATE=2017-12-03
-BBVERSION_BUILD=46
-
-function bbns_version_infoe {
-	type infoe 2>&1|if grep 'not found' -q; then
-		echo "$*"
-	else
-		infoe "$*"
-	fi
-}
-
-function bbns_version_showversion {
-	bbns_version_infoe "$BBVERSION_PROGRAM : $(bbns_version_genversion)"
-	exit
-}
-
-function bbns_version_genversion {
-	echo "$BBVERSION_MAJOR.$BBVERSION_MINOR.$BBVERSION_POINT ($BBVERSION_FLAG build $BBVERSION_BUILD) $BBVERSION_BUILDDATE"
-}
-
-if [[ "$*" =~ --version ]]; then
-	bbns_version_showversion
-fi
-### notest FUNCTION ARGUMENTS Usage:bbuild
+### main:script SCRIPTNAME FUNCTION [ARGUMENTS ...] Usage:bbuild
 #
-# This function performs a simple test to see if the "BBSETTESTMODE" variable is set to the string "test mode"
+# Runs the function FUNCTION with ARGUMENTS, only if the runtime
+# name of the script matches SCRIPTNAME
 #
-# If so, it does NOT call the function. In all other cases, the function is called with the arguments.
+# This allows you include a main-like function in your library
+# that only runs if you use your lib as an executabl itself.
 #
-# The purpose of this function is to allow a simple method to encourage testability: source notest.sh in your test script, and set the BBTESTMODE variable to "test mode" to prevent the script from running.
+# For example, an image archiver could be:
 #
-# Example test target script, "test_target.sh":
-#
-#	#%include notest.sh
-#
-# 	function action1 { ... }
-#
-# 	function action2 { ... }
-#
-# 	function main {
-# 		action1
-# 		action2
+# 	function archive_images {
+# 		tar czf "$1.tgz" "$@"
 # 	}
 #
-# 	notest main "$@"
+# 	runmain archiveimages.sh archive_images "$@"
 #
-# Example test script:
+# When included a different script, the main:script call does not fire the lib's function
 #
-# 	. ~/.local/lib/bbuild/notest.sh
-# 	BBTESTMODE="test mode"
+# If the lib is compiled/made executable, and named "archiveimages.sh", the function runs.
 #
-# 	# main will not run
-# 	. test_target.sh
-#
-# 	action1 || echo failed action1
-#
-# 	action2 || echo failed action2
-#
-# You can source a file with this kind of structure without the risk of triggering its runtime. This allows the file to be sourced and tested safely.
+# This is similar to `if __name__ == "__main__"` clauses in python
 #
 ###/doc
 
-function notest {
+function runmain {
+	local required_name="$1"; shift
 	local funcall="$1"; shift
+	local scriptname="$(basename "$0")"
 
-	if [[ "${BBTESTMODE:-}" != "test mode" ]]; then
+	if [[ "$required_name" = "$scriptname" ]]; then
 		"$funcall" "$@"
 	fi
 }
 #!/bin/bash
 
+#!/bin/bash
+
+### Colours for bash Usage:bbuild
+# A series of colour flags for use in outputs.
+#
+# Example:
+# 	
+# 	echo "${CRED}Some red text ${CBBLU} some blue text $CDEF some text in the terminal's default colour"
+#
+# Colours available:
+#
+# CDEF -- switches to the terminal default
+#
+# CRED, CBRED -- red, bold red
+# CGRN, CBGRN -- green, bold green
+# CYEL, CBYEL -- yellow, bold yellow
+# CBLU, CBBLU -- blue, bold blue
+# CPUR, CBPUR -- purple, bold purple
+#
+###/doc
+
+export CRED="\033[0;31m"
+export CGRN="\033[0;32m"
+export CYEL="\033[0;33m"
+export CBLU="\033[0;34m"
+export CPUR="\033[0;35m"
+export CBRED="\033[1;31m"
+export CBGRN="\033[1;32m"
+export CBYEL="\033[1;33m"
+export CBBLU="\033[1;34m"
+export CBPUR="\033[1;35m"
+export CDEF="\033[0m"
+
+### Environment Variables Usage:bbuild
+#
+# MODE_DEBUG : set to 'yes' to enable debugging output
+# MODE_DEBUG_VERBOSE : set to 'yes' to enable command echoing
+#
+###/doc
+
 
 MODE_DEBUG=no
 MODE_DEBUG_VERBOSE=no
 
-### debuge MESSAGE Usage:bbuild
+### out:debug MESSAGE Usage:bbuild
 # print a blue debug message to stderr
 # only prints if MODE_DEBUG is set to "yes"
 ###/doc
-function debuge {
+function out:debug {
 	if [[ "$MODE_DEBUG" = yes ]]; then
 		echo -e "${CBBLU}DEBUG:$CBLU$*$CDEF" 1>&2
 	fi
 }
 
-### infoe MESSAGE Usage:bbuild
+### out:info MESSAGE Usage:bbuild
 # print a green informational message to stderr
 ###/doc
-function infoe {
+function out:info {
 	echo -e "$CGRN$*$CDEF" 1>&2
 }
 
-### warne MESSAGE Usage:bbuild
+### out:warn MESSAGE Usage:bbuild
 # print a yellow warning message to stderr
 ###/doc
-function warne {
+function out:warn {
 	echo -e "${CBYEL}WARN:$CYEL $*$CDEF" 1>&2
 }
 
-### faile [CODE] MESSAGE Usage:bbuild
+### out:fail [CODE] MESSAGE Usage:bbuild
 # print a red failure message to stderr and exit with CODE
 # CODE must be a number
 # if no code is specified, error code 127 is used
 ###/doc
-function faile {
+function out:fail {
 	local ERCODE=127
 	local numpat='^[0-9]+$'
 
@@ -163,48 +157,34 @@ function faile {
 		ERCODE="$1"; shift
 	fi
 
-	echo "${CBRED}ERROR FAIL:$CRED$*$CDEF" 1>&2
+	echo -e "${CBRED}ERROR FAIL:$CRED$*$CDEF" 1>&2
 	exit $ERCODE
 }
 
-function dumpe {
-	echo -n "[1;35m$*" 1>&2
-	echo -n "[0;35m" 1>&2
+function out:dump {
+	echo -e -n "${CBPUR}$*" 1>&2
+	echo -e -n "$CPUR" 1>&2
 	cat - 1>&2
-	echo -n "[0m" 1>&2
+	echo -e -n "$CDEF" 1>&2
 }
 
-function breake {
-	if [[ "$MODE_DEBUG" != yes ]]; then
-		return
-	fi
+function out:break {
+	[[ "$MODE_DEBUG" = yes ]] || return
 
 	read -p "${CRED}BREAKPOINT: $* >$CDEF " >&2
 	if [[ "$REPLY" =~ $(echo 'quit|exit|stop') ]]; then
-		faile "ABORT"
+		out:fail "ABORT"
 	fi
 }
 
-### Auto debug Usage:main
-# When included, bashout processes a special "--debug" flag
-#
-# It does not remove the debug flag from arguments.
-###/doc
-
-if [[ "$*" =~ --debug ]]; then
-	MODE_DEBUG=yes
-
-	if [[ "$MODE_DEBUG_VERBOSE" = yes ]]; then
-		set -x
-	fi
-fi
+[[ "$MODE_DEBUG_VERBOSE" = yes ]] && set -x || :
 #!/bin/bash
 
-### printhelp Usage:bbuild
+### autohelp:print Usage:bbuild
 # Write your help as documentation comments in your script
 #
 # If you need to output the help from a running script, call the
-# `printhelp` function and it will print the help documentation
+# `autohelp:print` function and it will print the help documentation
 # in the current script to stdout
 #
 # A help comment looks like this:
@@ -220,33 +200,35 @@ fi
 #
 ###/doc
 
-CHAR='#'
+HELPCHAR='#'
 
-function printhelp {
-	local USAGESTRING=help
-	local TARGETFILE=$0
-	if [[ -n "$*" ]]; then USAGESTRING="$1" ; shift; fi
-	if [[ -n "$*" ]]; then TARGETFILE="$1" ; shift; fi
+function autohelp:print {
+	local USAGESTRING="${1:-}"; shift
+	local TARGETFILE="${1:-}"; shift
+	[[ -n "$USAGESTRING" ]] || USAGESTRING=help
+	[[ -n "$TARGETFILE" ]] || TARGETFILE="$0"
 
         echo -e "\n$(basename "$TARGETFILE")\n===\n"
-        local SECSTART='^\s*'"$CHAR$CHAR$CHAR"'\s+(.+?)\s+Usage:'"$USAGESTRING"'\s*$'
-        local SECEND='^\s*'"$CHAR$CHAR$CHAR"'\s*/doc\s*$'
-        local insec="$(mktemp --tmpdir)"; rm "$insec"
-        cat "$TARGETFILE" | while read secline; do
+        local SECSTART='^\s*'"$HELPCHAR$HELPCHAR$HELPCHAR"'\s+(.+?)\s+Usage:'"$USAGESTRING"'\s*$'
+        local SECEND='^\s*'"$HELPCHAR$HELPCHAR$HELPCHAR"'\s*/doc\s*$'
+        local insec=false
+
+        while read secline; do
                 if [[ "$secline" =~ $SECSTART ]]; then
-                        touch "$insec"
+                        insec=true
                         echo -e "\n${BASH_REMATCH[1]}\n---\n"
-                elif [[ -f $insec ]]; then
+
+                elif [[ "$insec" = true ]]; then
                         if [[ "$secline" =~ $SECEND ]]; then
-                                rm "$insec"
+                                insec=false
                         else
-				echo "$secline" | sed -r "s/^\s*$CHAR//g"
+				echo "$secline" | sed -r "s/^\s*$HELPCHAR//g"
                         fi
                 fi
-        done
-        if [[ -f "$insec" ]]; then
+        done < "$TARGETFILE"
+
+        if [[ "$insec" = true ]]; then
                 echo "WARNING: Non-terminated help block." 1>&2
-		rm "$insec"
         fi
 	echo ""
 }
@@ -256,9 +238,9 @@ function printhelp {
 # automatically call help if "--help" is detected in arguments
 #
 ###/doc
-if [[ "$@" =~ --help ]]; then
+if [[ "$*" =~ --help ]]; then
 	cols="$(tput cols)"
-	printhelp | fold -w "$cols" -s
+	autohelp:print | fold -w "$cols" -s || autohelp:print
 	exit 0
 fi
 #!/bin/bash
@@ -268,14 +250,14 @@ fi
 #
 # Replaces any string of invalid characters into a "_"
 #
-# Valid characters for varify_var are:
+# Valid characters for varify:var are:
 #
 # * a-z
 # * A-Z
 # * 0-9
 # * underscore ("_")
 #
-# Valid characters for varify_fil are as above, plus:
+# Valid characters for varify:fil are as above, plus:
 #
 # * dash ("-")
 # * period (".")
@@ -283,56 +265,12 @@ fi
 # Can be used to produce filenames.
 ###/doc
 
-function varify_var {
+function varify:var {
 	echo "$*" | sed -r 's/[^a-zA-Z0-9_]/_/g'
 }
 
-function varify_fil {
+function varify:fil {
 	echo "$*" | sed -r 's/[^a-zA-Z0-9_.-]/_/g'
-}
-#!/bin/bash
-
-### getbin COMMANDS ... Usage:bbuild
-#
-# Return the first existing binary
-#
-# Useful for finding an appropriate binary when you know
-# different systems may supply binaries under different names.
-#
-# Returns the full path from `which` for the first executable
-# encountered.
-#
-# Example:
-#
-# 	getbin markdown_py markdown ./mymarkdown
-#
-# Tries in turn to get a `markdown_py`, then a `markdown`, and then a local `./mymarkdown`
-#
-###/doc
-
-function getbin {
-	local BINEXE=
-	for binname in "$@"; do
-		# Some implementations of `which` print error messages
-		# Not useful here.
-		BINEXE=$(which "$binname" 2>/dev/null)
-
-		if [[ -n "$BINEXE" ]]; then
-			echo "$BINEXE"
-			return 0
-		fi
-	done
-	return 1
-}
-
-### hasbin COMMANDS ... Usage:bbuild
-#
-# Determine if at least one of the binaries listed is present and installed on the system
-#
-###/doc
-
-function hasbin {
-	[[ -n "$(getbin "$@")" ]]
 }
 #!/bin/bash
 
@@ -352,36 +290,77 @@ function hasbin {
 
 #!/bin/bash
 
-### Colours for bash Usage:bbuild
-# A series of colour flags for use in outputs.
+### bincheck:get COMMANDS ... Usage:bbuild
+#
+# Return the first existing binary
+#
+# Useful for finding an appropriate binary when you know
+# different systems may supply binaries under different names.
+#
+# Returns the full path from `which` for the first executable
+# encountered.
 #
 # Example:
-# 	
-# 	echo "${CRED}Some red text ${CBBLU} some blue text $CDEF some text in the terminal's default colour"
 #
-# Colours available:
+# 	bincheck:get markdown_py markdown ./mymarkdown
 #
-# CDEF -- switches to the terminal default
-#
-# CRED, CBRED -- red and bright/bold red
-# CGRN, CBGRN -- green and bright/bold green
-# CYEL, CBYEL -- yellow and bright/bold yellow
-# CBLU, CBBLU -- blue and bright/bold blue
-# CPUR, CBPUR -- purple and bright/bold purple
+# Tries in turn to get a `markdown_py`, then a `markdown`, and then a local `./mymarkdown`
 #
 ###/doc
 
-export CRED="[31m"
-export CGRN="[32m"
-export CYEL="[33m"
-export CBLU="[34m"
-export CPUR="[35m"
-export CBRED="[1;31m"
-export CBGRN="[1;32m"
-export CBYEL="[1;33m"
-export CBBLU="[1;34m"
-export CBPUR="[1;35m"
-export CDEF="[0m"
+bincheck:get() {
+	local BINEXE=
+	for binname in "$@"; do
+		# Some implementations of `which` print error messages
+		# Not useful here.
+		BINEXE=$(which "$binname" 2>/dev/null)
+
+		if [[ -n "$BINEXE" ]]; then
+			echo "$BINEXE"
+			return 0
+		fi
+	done
+	return 1
+}
+
+### bincheck:has NAMES ... Usage:bbuild
+#
+# Determine if at least one of the binaries listed is present and installed on the system
+#
+###/doc
+
+bincheck:has() {
+	[[ -n "$(bincheck:get "$@")" ]]
+}
+
+### bincheck:path NAME Usage:bbuild
+#
+# Determine the actual path to the command
+#
+# Relative paths are not expanded.
+#
+###/doc
+
+bincheck:path() {
+	local binname="$1"; shift
+
+	[[ "$binname" =~ / ]] && { 
+		# A relative path cannot be resolved, just check existence
+		[[ -e "$binname" ]] && echo "$binname" || return 1
+
+	} || binname="$(which "$binname" 2>/dev/null)"
+
+	# `which` failed
+	[[ -n "$binname" ]] || return 1
+
+	[[ -h "$binname" ]] && {
+
+		local pointedname="$(ls -l "$binname"|grep -oP "$binname.+"|sed "s|$binname -> ||")"
+		bincheck:path "$pointedname" ; return "$?"
+	
+	} || echo "$binname"
+}
+
 #!/bin/bash
 
 ### abspath Usage:bbuild
@@ -389,20 +368,20 @@ export CDEF="[0m"
 #
 # Exposes two functions
 #
-#     abspath
-#     abspath_collapse
+#     abspath:path
+#     abspath:simple
 #
-# Do not use the python-based 'abspath' for intensitve resolution;
-# instead, use native 'abspath_collapse' which is at least 170 times
+# Do not use the python-based 'abspath:path' for intensitve resolution;
+# instead, use native 'abspath:simple' which is at least 170 times
 # more efficient, at the cost of perhaps being potentially
 # dumber (simply collapses '/./' and '/../').
 # 
 # Neither utility expands softlinks.
 #
-# If python is not found, abspath falls back to abspath_collapse systematically.
+# If python is not found, abspath:path falls back to abspath:simple systematically.
 ###/doc
 
-function abspath {
+function abspath:path {
 	local newvar=${1//"'"/"\\'"}
 	(
 		set +eu
@@ -411,14 +390,14 @@ function abspath {
 		elif which python3 >/dev/null 2>&1 ; then
 			python3 -c "import os ; print(os.path.abspath('$newvar') )"
 		else
-			abspath_collapse "$newvar"
+			abspath:simple "$newvar"
 		fi
 	)
 }
 
 # More efficient by a factor of at least 170:1
 # compared to spinning up a python process every time
-function abspath_collapse {
+function abspath:simple {
 	local workpath="$1"
 	if [[ "${workpath:0:1}" != "/" ]]; then workpath="$PWD/$workpath"; fi
 	for x in {1..50}; do # set a limit on how many iterations - only very stupid paths will get us here.
@@ -438,10 +417,10 @@ make_archive:remove() {
 }
 
 make_archive:pdf() {
-	local targetdir="$(abspath "$1")"; shift
+	local targetdir="$(abspath:simple "$1")"; shift
 	local archivename="$targetdir.pdf"
 
-	if hasbin img2pdf; then
+	if bincheck:has img2pdf; then
 		(
 		cd "$targetdir/"
 		img2pdf -o "$archivename" page_* && {
@@ -450,15 +429,15 @@ make_archive:pdf() {
 		}
 		)
 	else
-		warne "'img2pdf' command not installed"
+		out:warn "'img2pdf' command not installed"
 	fi
 }
 
 make_archive:cbz() {
-	local targetdir="$(abspath "$1")"; shift
+	local targetdir="$(abspath:simple "$1")"; shift
 	local archivename="$targetdir.cbz"
 
-	if hasbin zip; then
+	if bincheck:has zip; then
 		(
 		# Comic book archives need a special comic book reader
 		#  but they are recognized by eBook readers, and can be unpacked
@@ -471,7 +450,7 @@ make_archive:cbz() {
 		}
 		)
 	else
-		warne "'zip' command not installed"
+		out:warn "'zip' command not installed"
 	fi
 }
 
@@ -487,20 +466,21 @@ make_archive:main() {
 		make_archive:cbz "$targetdir"
 		;;
 	*)
-		faile "Wrong archive type name [$archivetype] - choose 'cbz' or 'pdf'"
+		out:fail "Wrong archive type name [$archivetype] - choose 'cbz' or 'pdf'"
 		;;
 	esac
 }
 
-if [[ "$(basename "$0")" = comicarchive ]]; then
-	: ${NOREMOVE=true}
-	make_archive:main "$@"
+if [[ -z "${NOREMOVE:-}" ]]; then
+	NOREMOVE=false
 fi
+
+runmain comicarchive make_archive:main "$@"
 
 wgetdl() {
 	local downloadfile="$1"; shift
 	if [[ -z "$*" ]]; then
-		warne "Error downloading $downloadfile"
+		out:warn "Error downloading $downloadfile"
 		return 404
 	fi
 
@@ -552,7 +532,7 @@ set_image_extension() {
 	local imagetype="$(file "$imagefile"|egrep -oi 'jpeg|jpg|png|gif' | tr '[:upper:]' '[:lower:]')"
 	local extension=bin
 
-	debuge "Renaming $imagefile"
+	out:debug "Renaming $imagefile"
 
 	case "$imagetype" in
 		jpeg|jpg)
@@ -560,7 +540,7 @@ set_image_extension() {
 		png|gif)
 			extension="$imagetype" ;;
 		*)
-			warne "Could not determine extension for $imagefile"
+			out:warn "Could not determine extension for $imagefile"
 			return ;;
 	esac
 
@@ -573,20 +553,20 @@ download_chapter_page() {
 	local pageurl="$1"; shift
 	local targetfile="$1"; shift
 
-	infoe "Download [$pageurl] to [$targetfile]"
+	out:info "Download [$pageurl] to [$targetfile]"
 
 	wgetdl "$targetfile" "$pageurl"
-	[[ "$?" = 404 ]] && faile 404 "Page not found"
+	[[ "$?" = 404 ]] && out:fail 404 "Page not found"
 
 	local imgurl="$(grep '<img' "$targetfile"|grep 'id="image"'|grep -oP 'src="[^"]+')"
 
-	debuge "Cutting $imgurl"
+	out:debug "Cutting $imgurl"
 
 	imgurl="${imgurl:5}"
 
-	debuge "$imgurl : $targetfile"
+	out:debug "$imgurl : $targetfile"
 	wgetdl "$targetfile" "$imgurl"
-	[[ "$?" = 404 ]] && faile 404 "Image not found"
+	[[ "$?" = 404 ]] && out:fail 404 "Image not found"
 	set_image_extension "$targetfile"
 }
 
@@ -621,10 +601,12 @@ download_chapter() {
 		sleep "$MFCOM_WAIT"
 	done
 
-	warne "Nothing downloaded !"
-	[[ "$i" -gt 0 ]] || return
+	[[ "$i" -gt 0 ]] || {
+		out:warn "Nothing downloaded !"
+		return
+	}
 
-	local archivename="$(varify_fil "$chapdir")"
+	local archivename="$(varify:fil "$chapdir")"
 	if [[ "${MFCOM_MAKE_ARCHIVE:-}" = pdf ]]; then
 		make_archive:pdf "$targetdir"
 	elif [[ "${MFCOM_MAKE_ARCHIVE:-}" = cbz ]]; then
@@ -639,7 +621,7 @@ download_all_chapters() {
 		[[ "$LINKLINE" =~ $chappat ]]
 		chapnum="${BASH_REMATCH[1]}"
 		if [[ -z "$chapnum" ]]; then
-			warne "Could not extract chapter number from $LINKLINE"
+			out:warn "Could not extract chapter number from $LINKLINE"
 			continue
 		fi
 
@@ -662,7 +644,7 @@ numcheck() {
 	local tocheck="$1"; shift
 
 	if [[ ! "$tocheck" =~ ^[0-9]*$ ]]; then
-		faile "Invalid number: $*"
+		out:fail "Invalid number: $*"
 	fi
 }
 
@@ -673,7 +655,7 @@ get_main_url() {
 		U_MAINPAGE="$(cat "$U_MAINPAGE/$SURLFILE")"
 
 	elif [[ ! "$U_MAINPAGE" =~ ^https?:// ]]; then
-		faile "Invalid page URL $U_MAINPAGE"
+		out:fail "Invalid page URL $U_MAINPAGE"
 	fi
 }
 
@@ -693,7 +675,7 @@ set_indices() {
 		ENDINDEX=$((STARTINDEX + ENDINDEX))
 	else
 		numcheck "$ENDINDEX" end index
-		is_smaller "$ENDINDEX" "$STARTINDEX" || faile "Start index must be smaller than end index"
+		is_smaller "$STARTINDEX" "$ENDINDEX" || out:fail "Start index must be smaller than end index"
 	fi
 }
 
@@ -703,7 +685,7 @@ setup_configuration() {
 
 	set_indices "${1:-}" "${2:-}"
 
-	D_TARGET="$(varify_fil "${U_MAINPAGE##*mangafox.me/manga/}")"
+	D_TARGET="$(varify:fil "${U_MAINPAGE##*/manga/}")"
 	D_TARGET="${D_TARGET%_}"
 	F_MAIN="$D_TARGET/frontpage.html"
 	F_LINKS="$D_TARGET/links.txt"
@@ -728,7 +710,7 @@ announce_setup() {
 
 main() {
 	if [[ -z "$*" ]]; then
-		printhelp
+		autohelp:print
 		exit
 	fi
 
@@ -747,5 +729,5 @@ main() {
 	download_all_chapters
 }
 
-notest main "$@"
+runmain mfcom main "$@"
 

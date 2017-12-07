@@ -24,7 +24,7 @@
 #
 ###/doc
 
-#%include autohelp.sh
+#%include autohelp.sh runmain.sh
 
 set -euo pipefail
 
@@ -59,7 +59,7 @@ core_name() {
 	echo "$filename"
 }
 
-main() {
+tgzzip:main() {
 	for item in "$@"; do
 		local core_name="$(core_name "$item")"
 		local filepath="$(abspath "$item")"
@@ -81,4 +81,4 @@ main() {
 	done
 }
 
-main "$@"
+runmain tgz-zip tgzzip:main "$@"

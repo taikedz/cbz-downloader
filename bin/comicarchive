@@ -16,7 +16,7 @@
 
 #!/bin/bash
 
-### getbin COMMANDS ... Usage:bbuild
+### bincheck:get COMMANDS ... Usage:bbuild
 #
 # Return the first existing binary
 #
@@ -28,13 +28,13 @@
 #
 # Example:
 #
-# 	getbin markdown_py markdown ./mymarkdown
+# 	bincheck:get markdown_py markdown ./mymarkdown
 #
 # Tries in turn to get a `markdown_py`, then a `markdown`, and then a local `./mymarkdown`
 #
 ###/doc
 
-function getbin {
+bincheck:get() {
 	local BINEXE=
 	for binname in "$@"; do
 		# Some implementations of `which` print error messages
@@ -49,93 +49,46 @@ function getbin {
 	return 1
 }
 
-### hasbin COMMANDS ... Usage:bbuild
+### bincheck:has NAMES ... Usage:bbuild
 #
 # Determine if at least one of the binaries listed is present and installed on the system
 #
 ###/doc
 
-function hasbin {
-	[[ -n "$(getbin "$@")" ]]
+bincheck:has() {
+	[[ -n "$(bincheck:get "$@")" ]]
 }
+
+### bincheck:path NAME Usage:bbuild
+#
+# Determine the actual path to the command
+#
+# Relative paths are not expanded.
+#
+###/doc
+
+bincheck:path() {
+	local binname="$1"; shift
+
+	[[ "$binname" =~ / ]] && { 
+		# A relative path cannot be resolved, just check existence
+		[[ -e "$binname" ]] && echo "$binname" || return 1
+
+	} || binname="$(which "$binname" 2>/dev/null)"
+
+	# `which` failed
+	[[ -n "$binname" ]] || return 1
+
+	[[ -h "$binname" ]] && {
+
+		local pointedname="$(ls -l "$binname"|grep -oP "$binname.+"|sed "s|$binname -> ||")"
+		bincheck:path "$pointedname" ; return "$?"
+	
+	} || echo "$binname"
+}
+
 #!/bin/bash
 
-
-MODE_DEBUG=no
-MODE_DEBUG_VERBOSE=no
-
-### debuge MESSAGE Usage:bbuild
-# print a blue debug message to stderr
-# only prints if MODE_DEBUG is set to "yes"
-###/doc
-function debuge {
-	if [[ "$MODE_DEBUG" = yes ]]; then
-		echo -e "${CBBLU}DEBUG:$CBLU$*$CDEF" 1>&2
-	fi
-}
-
-### infoe MESSAGE Usage:bbuild
-# print a green informational message to stderr
-###/doc
-function infoe {
-	echo -e "$CGRN$*$CDEF" 1>&2
-}
-
-### warne MESSAGE Usage:bbuild
-# print a yellow warning message to stderr
-###/doc
-function warne {
-	echo -e "${CBYEL}WARN:$CYEL $*$CDEF" 1>&2
-}
-
-### faile [CODE] MESSAGE Usage:bbuild
-# print a red failure message to stderr and exit with CODE
-# CODE must be a number
-# if no code is specified, error code 127 is used
-###/doc
-function faile {
-	local ERCODE=127
-	local numpat='^[0-9]+$'
-
-	if [[ "$1" =~ $numpat ]]; then
-		ERCODE="$1"; shift
-	fi
-
-	echo "${CBRED}ERROR FAIL:$CRED$*$CDEF" 1>&2
-	exit $ERCODE
-}
-
-function dumpe {
-	echo -n "[1;35m$*" 1>&2
-	echo -n "[0;35m" 1>&2
-	cat - 1>&2
-	echo -n "[0m" 1>&2
-}
-
-function breake {
-	if [[ "$MODE_DEBUG" != yes ]]; then
-		return
-	fi
-
-	read -p "${CRED}BREAKPOINT: $* >$CDEF " >&2
-	if [[ "$REPLY" =~ $(echo 'quit|exit|stop') ]]; then
-		faile "ABORT"
-	fi
-}
-
-### Auto debug Usage:main
-# When included, bashout processes a special "--debug" flag
-#
-# It does not remove the debug flag from arguments.
-###/doc
-
-if [[ "$*" =~ --debug ]]; then
-	MODE_DEBUG=yes
-
-	if [[ "$MODE_DEBUG_VERBOSE" = yes ]]; then
-		set -x
-	fi
-fi
 #!/bin/bash
 
 ### Colours for bash Usage:bbuild
@@ -149,25 +102,95 @@ fi
 #
 # CDEF -- switches to the terminal default
 #
-# CRED, CBRED -- red and bright/bold red
-# CGRN, CBGRN -- green and bright/bold green
-# CYEL, CBYEL -- yellow and bright/bold yellow
-# CBLU, CBBLU -- blue and bright/bold blue
-# CPUR, CBPUR -- purple and bright/bold purple
+# CRED, CBRED -- red, bold red
+# CGRN, CBGRN -- green, bold green
+# CYEL, CBYEL -- yellow, bold yellow
+# CBLU, CBBLU -- blue, bold blue
+# CPUR, CBPUR -- purple, bold purple
 #
 ###/doc
 
-export CRED="[31m"
-export CGRN="[32m"
-export CYEL="[33m"
-export CBLU="[34m"
-export CPUR="[35m"
-export CBRED="[1;31m"
-export CBGRN="[1;32m"
-export CBYEL="[1;33m"
-export CBBLU="[1;34m"
-export CBPUR="[1;35m"
-export CDEF="[0m"
+export CRED="\033[0;31m"
+export CGRN="\033[0;32m"
+export CYEL="\033[0;33m"
+export CBLU="\033[0;34m"
+export CPUR="\033[0;35m"
+export CBRED="\033[1;31m"
+export CBGRN="\033[1;32m"
+export CBYEL="\033[1;33m"
+export CBBLU="\033[1;34m"
+export CBPUR="\033[1;35m"
+export CDEF="\033[0m"
+
+### Environment Variables Usage:bbuild
+#
+# MODE_DEBUG : set to 'yes' to enable debugging output
+# MODE_DEBUG_VERBOSE : set to 'yes' to enable command echoing
+#
+###/doc
+
+
+MODE_DEBUG=no
+MODE_DEBUG_VERBOSE=no
+
+### out:debug MESSAGE Usage:bbuild
+# print a blue debug message to stderr
+# only prints if MODE_DEBUG is set to "yes"
+###/doc
+function out:debug {
+	if [[ "$MODE_DEBUG" = yes ]]; then
+		echo -e "${CBBLU}DEBUG:$CBLU$*$CDEF" 1>&2
+	fi
+}
+
+### out:info MESSAGE Usage:bbuild
+# print a green informational message to stderr
+###/doc
+function out:info {
+	echo -e "$CGRN$*$CDEF" 1>&2
+}
+
+### out:warn MESSAGE Usage:bbuild
+# print a yellow warning message to stderr
+###/doc
+function out:warn {
+	echo -e "${CBYEL}WARN:$CYEL $*$CDEF" 1>&2
+}
+
+### out:fail [CODE] MESSAGE Usage:bbuild
+# print a red failure message to stderr and exit with CODE
+# CODE must be a number
+# if no code is specified, error code 127 is used
+###/doc
+function out:fail {
+	local ERCODE=127
+	local numpat='^[0-9]+$'
+
+	if [[ "$1" =~ $numpat ]]; then
+		ERCODE="$1"; shift
+	fi
+
+	echo -e "${CBRED}ERROR FAIL:$CRED$*$CDEF" 1>&2
+	exit $ERCODE
+}
+
+function out:dump {
+	echo -e -n "${CBPUR}$*" 1>&2
+	echo -e -n "$CPUR" 1>&2
+	cat - 1>&2
+	echo -e -n "$CDEF" 1>&2
+}
+
+function out:break {
+	[[ "$MODE_DEBUG" = yes ]] || return
+
+	read -p "${CRED}BREAKPOINT: $* >$CDEF " >&2
+	if [[ "$REPLY" =~ $(echo 'quit|exit|stop') ]]; then
+		out:fail "ABORT"
+	fi
+}
+
+[[ "$MODE_DEBUG_VERBOSE" = yes ]] && set -x || :
 #!/bin/bash
 
 ### abspath Usage:bbuild
@@ -175,20 +198,20 @@ export CDEF="[0m"
 #
 # Exposes two functions
 #
-#     abspath
-#     abspath_collapse
+#     abspath:path
+#     abspath:simple
 #
-# Do not use the python-based 'abspath' for intensitve resolution;
-# instead, use native 'abspath_collapse' which is at least 170 times
+# Do not use the python-based 'abspath:path' for intensitve resolution;
+# instead, use native 'abspath:simple' which is at least 170 times
 # more efficient, at the cost of perhaps being potentially
 # dumber (simply collapses '/./' and '/../').
 # 
 # Neither utility expands softlinks.
 #
-# If python is not found, abspath falls back to abspath_collapse systematically.
+# If python is not found, abspath:path falls back to abspath:simple systematically.
 ###/doc
 
-function abspath {
+function abspath:path {
 	local newvar=${1//"'"/"\\'"}
 	(
 		set +eu
@@ -197,14 +220,14 @@ function abspath {
 		elif which python3 >/dev/null 2>&1 ; then
 			python3 -c "import os ; print(os.path.abspath('$newvar') )"
 		else
-			abspath_collapse "$newvar"
+			abspath:simple "$newvar"
 		fi
 	)
 }
 
 # More efficient by a factor of at least 170:1
 # compared to spinning up a python process every time
-function abspath_collapse {
+function abspath:simple {
 	local workpath="$1"
 	if [[ "${workpath:0:1}" != "/" ]]; then workpath="$PWD/$workpath"; fi
 	for x in {1..50}; do # set a limit on how many iterations - only very stupid paths will get us here.
@@ -224,10 +247,10 @@ make_archive:remove() {
 }
 
 make_archive:pdf() {
-	local targetdir="$(abspath "$1")"; shift
+	local targetdir="$(abspath:simple "$1")"; shift
 	local archivename="$targetdir.pdf"
 
-	if hasbin img2pdf; then
+	if bincheck:has img2pdf; then
 		(
 		cd "$targetdir/"
 		img2pdf -o "$archivename" page_* && {
@@ -236,15 +259,15 @@ make_archive:pdf() {
 		}
 		)
 	else
-		warne "'img2pdf' command not installed"
+		out:warn "'img2pdf' command not installed"
 	fi
 }
 
 make_archive:cbz() {
-	local targetdir="$(abspath "$1")"; shift
+	local targetdir="$(abspath:simple "$1")"; shift
 	local archivename="$targetdir.cbz"
 
-	if hasbin zip; then
+	if bincheck:has zip; then
 		(
 		# Comic book archives need a special comic book reader
 		#  but they are recognized by eBook readers, and can be unpacked
@@ -257,7 +280,7 @@ make_archive:cbz() {
 		}
 		)
 	else
-		warne "'zip' command not installed"
+		out:warn "'zip' command not installed"
 	fi
 }
 
@@ -273,12 +296,13 @@ make_archive:main() {
 		make_archive:cbz "$targetdir"
 		;;
 	*)
-		faile "Wrong archive type name [$archivetype] - choose 'cbz' or 'pdf'"
+		out:fail "Wrong archive type name [$archivetype] - choose 'cbz' or 'pdf'"
 		;;
 	esac
 }
 
-if [[ "$(basename "$0")" = comicarchive ]]; then
-	: ${NOREMOVE=true}
-	make_archive:main "$@"
+if [[ -z "${NOREMOVE:-}" ]]; then
+	NOREMOVE=false
 fi
+
+runmain comicarchive make_archive:main "$@"

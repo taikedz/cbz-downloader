@@ -41,14 +41,14 @@ set -euo pipefail
 SURLFILE="source.url"
 LASTINDEXFILE="last-tried.txt"
 
-#%include version.sh notest.sh
-#%include bashout.sh autohelp.sh varify.sh getbin.sh
+#%include runmain.sh
+#%include out.sh autohelp.sh varify.sh
 #%include comicarchive
 
 wgetdl() {
 	local downloadfile="$1"; shift
 	if [[ -z "$*" ]]; then
-		warne "Error downloading $downloadfile"
+		out:warn "Error downloading $downloadfile"
 		return 404
 	fi
 
@@ -100,7 +100,7 @@ set_image_extension() {
 	local imagetype="$(file "$imagefile"|egrep -oi 'jpeg|jpg|png|gif' | tr '[:upper:]' '[:lower:]')"
 	local extension=bin
 
-	debuge "Renaming $imagefile"
+	out:debug "Renaming $imagefile"
 
 	case "$imagetype" in
 		jpeg|jpg)
@@ -108,7 +108,7 @@ set_image_extension() {
 		png|gif)
 			extension="$imagetype" ;;
 		*)
-			warne "Could not determine extension for $imagefile"
+			out:warn "Could not determine extension for $imagefile"
 			return ;;
 	esac
 
@@ -121,20 +121,20 @@ download_chapter_page() {
 	local pageurl="$1"; shift
 	local targetfile="$1"; shift
 
-	infoe "Download [$pageurl] to [$targetfile]"
+	out:info "Download [$pageurl] to [$targetfile]"
 
 	wgetdl "$targetfile" "$pageurl"
-	[[ "$?" = 404 ]] && faile 404 "Page not found"
+	[[ "$?" = 404 ]] && out:fail 404 "Page not found"
 
 	local imgurl="$(grep '<img' "$targetfile"|grep 'id="image"'|grep -oP 'src="[^"]+')"
 
-	debuge "Cutting $imgurl"
+	out:debug "Cutting $imgurl"
 
 	imgurl="${imgurl:5}"
 
-	debuge "$imgurl : $targetfile"
+	out:debug "$imgurl : $targetfile"
 	wgetdl "$targetfile" "$imgurl"
-	[[ "$?" = 404 ]] && faile 404 "Image not found"
+	[[ "$?" = 404 ]] && out:fail 404 "Image not found"
 	set_image_extension "$targetfile"
 }
 
@@ -170,11 +170,11 @@ download_chapter() {
 	done
 
 	[[ "$i" -gt 0 ]] || {
-		warne "Nothing downloaded !"
+		out:warn "Nothing downloaded !"
 		return
 	}
 
-	local archivename="$(varify_fil "$chapdir")"
+	local archivename="$(varify:fil "$chapdir")"
 	if [[ "${MFCOM_MAKE_ARCHIVE:-}" = pdf ]]; then
 		make_archive:pdf "$targetdir"
 	elif [[ "${MFCOM_MAKE_ARCHIVE:-}" = cbz ]]; then
@@ -189,7 +189,7 @@ download_all_chapters() {
 		[[ "$LINKLINE" =~ $chappat ]]
 		chapnum="${BASH_REMATCH[1]}"
 		if [[ -z "$chapnum" ]]; then
-			warne "Could not extract chapter number from $LINKLINE"
+			out:warn "Could not extract chapter number from $LINKLINE"
 			continue
 		fi
 
@@ -212,7 +212,7 @@ numcheck() {
 	local tocheck="$1"; shift
 
 	if [[ ! "$tocheck" =~ ^[0-9]*$ ]]; then
-		faile "Invalid number: $*"
+		out:fail "Invalid number: $*"
 	fi
 }
 
@@ -223,7 +223,7 @@ get_main_url() {
 		U_MAINPAGE="$(cat "$U_MAINPAGE/$SURLFILE")"
 
 	elif [[ ! "$U_MAINPAGE" =~ ^https?:// ]]; then
-		faile "Invalid page URL $U_MAINPAGE"
+		out:fail "Invalid page URL $U_MAINPAGE"
 	fi
 }
 
@@ -243,7 +243,7 @@ set_indices() {
 		ENDINDEX=$((STARTINDEX + ENDINDEX))
 	else
 		numcheck "$ENDINDEX" end index
-		is_smaller "$STARTINDEX" "$ENDINDEX" || faile "Start index must be smaller than end index"
+		is_smaller "$STARTINDEX" "$ENDINDEX" || out:fail "Start index must be smaller than end index"
 	fi
 }
 
@@ -253,7 +253,7 @@ setup_configuration() {
 
 	set_indices "${1:-}" "${2:-}"
 
-	D_TARGET="$(varify_fil "${U_MAINPAGE##*/manga/}")"
+	D_TARGET="$(varify:fil "${U_MAINPAGE##*/manga/}")"
 	D_TARGET="${D_TARGET%_}"
 	F_MAIN="$D_TARGET/frontpage.html"
 	F_LINKS="$D_TARGET/links.txt"
@@ -278,7 +278,7 @@ announce_setup() {
 
 main() {
 	if [[ -z "$*" ]]; then
-		printhelp
+		autohelp:print
 		exit
 	fi
 
@@ -297,5 +297,5 @@ main() {
 	download_all_chapters
 }
 
-notest main "$@"
+runmain mfcom main "$@"
 

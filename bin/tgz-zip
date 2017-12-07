@@ -26,11 +26,11 @@
 
 #!/bin/bash
 
-### printhelp Usage:bbuild
+### autohelp:print Usage:bbuild
 # Write your help as documentation comments in your script
 #
 # If you need to output the help from a running script, call the
-# `printhelp` function and it will print the help documentation
+# `autohelp:print` function and it will print the help documentation
 # in the current script to stdout
 #
 # A help comment looks like this:
@@ -46,33 +46,35 @@
 #
 ###/doc
 
-CHAR='#'
+HELPCHAR='#'
 
-function printhelp {
-	local USAGESTRING=help
-	local TARGETFILE=$0
-	if [[ -n "$*" ]]; then USAGESTRING="$1" ; shift; fi
-	if [[ -n "$*" ]]; then TARGETFILE="$1" ; shift; fi
+function autohelp:print {
+	local USAGESTRING="${1:-}"; shift
+	local TARGETFILE="${1:-}"; shift
+	[[ -n "$USAGESTRING" ]] || USAGESTRING=help
+	[[ -n "$TARGETFILE" ]] || TARGETFILE="$0"
 
         echo -e "\n$(basename "$TARGETFILE")\n===\n"
-        local SECSTART='^\s*'"$CHAR$CHAR$CHAR"'\s+(.+?)\s+Usage:'"$USAGESTRING"'\s*$'
-        local SECEND='^\s*'"$CHAR$CHAR$CHAR"'\s*/doc\s*$'
-        local insec="$(mktemp --tmpdir)"; rm "$insec"
-        cat "$TARGETFILE" | while read secline; do
+        local SECSTART='^\s*'"$HELPCHAR$HELPCHAR$HELPCHAR"'\s+(.+?)\s+Usage:'"$USAGESTRING"'\s*$'
+        local SECEND='^\s*'"$HELPCHAR$HELPCHAR$HELPCHAR"'\s*/doc\s*$'
+        local insec=false
+
+        while read secline; do
                 if [[ "$secline" =~ $SECSTART ]]; then
-                        touch "$insec"
+                        insec=true
                         echo -e "\n${BASH_REMATCH[1]}\n---\n"
-                elif [[ -f $insec ]]; then
+
+                elif [[ "$insec" = true ]]; then
                         if [[ "$secline" =~ $SECEND ]]; then
-                                rm "$insec"
+                                insec=false
                         else
-				echo "$secline" | sed -r "s/^\s*$CHAR//g"
+				echo "$secline" | sed -r "s/^\s*$HELPCHAR//g"
                         fi
                 fi
-        done
-        if [[ -f "$insec" ]]; then
+        done < "$TARGETFILE"
+
+        if [[ "$insec" = true ]]; then
                 echo "WARNING: Non-terminated help block." 1>&2
-		rm "$insec"
         fi
 	echo ""
 }
@@ -82,11 +84,44 @@ function printhelp {
 # automatically call help if "--help" is detected in arguments
 #
 ###/doc
-if [[ "$@" =~ --help ]]; then
+if [[ "$*" =~ --help ]]; then
 	cols="$(tput cols)"
-	printhelp | fold -w "$cols" -s
+	autohelp:print | fold -w "$cols" -s || autohelp:print
 	exit 0
 fi
+### main:script SCRIPTNAME FUNCTION [ARGUMENTS ...] Usage:bbuild
+#
+# Runs the function FUNCTION with ARGUMENTS, only if the runtime
+# name of the script matches SCRIPTNAME
+#
+# This allows you include a main-like function in your library
+# that only runs if you use your lib as an executabl itself.
+#
+# For example, an image archiver could be:
+#
+# 	function archive_images {
+# 		tar czf "$1.tgz" "$@"
+# 	}
+#
+# 	runmain archiveimages.sh archive_images "$@"
+#
+# When included a different script, the main:script call does not fire the lib's function
+#
+# If the lib is compiled/made executable, and named "archiveimages.sh", the function runs.
+#
+# This is similar to `if __name__ == "__main__"` clauses in python
+#
+###/doc
+
+function runmain {
+	local required_name="$1"; shift
+	local funcall="$1"; shift
+	local scriptname="$(basename "$0")"
+
+	if [[ "$required_name" = "$scriptname" ]]; then
+		"$funcall" "$@"
+	fi
+}
 
 set -euo pipefail
 
@@ -97,20 +132,20 @@ set -euo pipefail
 #
 # Exposes two functions
 #
-#     abspath
-#     abspath_collapse
+#     abspath:path
+#     abspath:simple
 #
-# Do not use the python-based 'abspath' for intensitve resolution;
-# instead, use native 'abspath_collapse' which is at least 170 times
+# Do not use the python-based 'abspath:path' for intensitve resolution;
+# instead, use native 'abspath:simple' which is at least 170 times
 # more efficient, at the cost of perhaps being potentially
 # dumber (simply collapses '/./' and '/../').
 # 
 # Neither utility expands softlinks.
 #
-# If python is not found, abspath falls back to abspath_collapse systematically.
+# If python is not found, abspath:path falls back to abspath:simple systematically.
 ###/doc
 
-function abspath {
+function abspath:path {
 	local newvar=${1//"'"/"\\'"}
 	(
 		set +eu
@@ -119,14 +154,14 @@ function abspath {
 		elif which python3 >/dev/null 2>&1 ; then
 			python3 -c "import os ; print(os.path.abspath('$newvar') )"
 		else
-			abspath_collapse "$newvar"
+			abspath:simple "$newvar"
 		fi
 	)
 }
 
 # More efficient by a factor of at least 170:1
 # compared to spinning up a python process every time
-function abspath_collapse {
+function abspath:simple {
 	local workpath="$1"
 	if [[ "${workpath:0:1}" != "/" ]]; then workpath="$PWD/$workpath"; fi
 	for x in {1..50}; do # set a limit on how many iterations - only very stupid paths will get us here.
@@ -169,7 +204,7 @@ core_name() {
 	echo "$filename"
 }
 
-main() {
+tgzzip:main() {
 	for item in "$@"; do
 		local core_name="$(core_name "$item")"
 		local filepath="$(abspath "$item")"
@@ -191,4 +226,4 @@ main() {
 	done
 }
 
-main "$@"
+runmain tgz-zip tgzzip:main "$@"
