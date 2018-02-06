@@ -2,11 +2,14 @@
 
 ### comicarchive Usage:help
 #
+#	comicarchive { cbz | pdf } COMICFOLDER
+#	make_archive:main { cbz | pdf } COMICFOLDER
+#
 # When run as standalone, the comicarchive command/subroutine turns a folder of
 #
 # 	chapter_X/page_*
 #
-# into a single chapter_X.pdf or chpater_X.cbz
+# into a single chapter_X.pdf or chapter_X.cbz
 #
 # Set NOREMOVE=true to prevent removeal of original files
 #
@@ -14,7 +17,7 @@
 #
 ###/doc
 
-#%include bincheck.sh out.sh abspath.sh
+#%include bincheck.sh out.sh abspath.sh runmain.sh
 
 make_archive:remove() {
 	local targetdir="$1"; shift
@@ -22,7 +25,7 @@ make_archive:remove() {
 }
 
 make_archive:pdf() {
-	local targetdir="$(abspath:simple "$1")"; shift
+	local targetdir="$(abspath:path "$1")"; shift
 	local archivename="$targetdir.pdf"
 
 	if bincheck:has img2pdf; then
@@ -39,7 +42,7 @@ make_archive:pdf() {
 }
 
 make_archive:cbz() {
-	local targetdir="$(abspath:simple "$1")"; shift
+	local targetdir="$(abspath:path "$1")"; shift
 	local archivename="$targetdir.cbz"
 
 	if bincheck:has zip; then
@@ -49,7 +52,7 @@ make_archive:cbz() {
 		#  since they're literally a ZIP file
 		#  and displayed in name order
 		cd "$targetdir/"
-		zip "$archivename" page_* && {
+		zip "$archivename" $(echo page_*) && {
 			cd ..
 			make_archive:remove "$targetdir"
 		}

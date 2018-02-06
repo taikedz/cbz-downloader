@@ -60,6 +60,11 @@ core_name() {
 }
 
 tgzzip:main() {
+	if [[ "$*" =~ --help ]]; then
+		autohelp:print
+		exit 0
+	fi
+
 	for item in "$@"; do
 		local core_name="$(core_name "$item")"
 		local filepath="$(abspath "$item")"

@@ -26,10 +26,10 @@
 
 #!/bin/bash
 
-### autohelp:print Usage:bbuild
+### autohelp:print [ SECTION [FILE] ] Usage:bbuild
 # Write your help as documentation comments in your script
 #
-# If you need to output the help from a running script, call the
+# If you need to output the help from your script, or a file, call the
 # `autohelp:print` function and it will print the help documentation
 # in the current script to stdout
 #
@@ -44,18 +44,32 @@
 #	#
 #	###/doc
 #
+# You can set a different help section by specifying a subsection
+#
+# 	autohelp:print section2
+#
+# > This would print a section defined in this way:
+#
+# 	### Some title Usage:section2
+# 	# <some content>
+# 	###/doc
+#
+# You can set a different comment character by setting the 'HELPCHAR' environment variable:
+#
+# 	HELPCHAR=%
+#
 ###/doc
 
 HELPCHAR='#'
 
 function autohelp:print {
-	local USAGESTRING="${1:-}"; shift
+	local SECTION_STRING="${1:-}"; shift
 	local TARGETFILE="${1:-}"; shift
-	[[ -n "$USAGESTRING" ]] || USAGESTRING=help
+	[[ -n "$SECTION_STRING" ]] || SECTION_STRING=help
 	[[ -n "$TARGETFILE" ]] || TARGETFILE="$0"
 
         echo -e "\n$(basename "$TARGETFILE")\n===\n"
-        local SECSTART='^\s*'"$HELPCHAR$HELPCHAR$HELPCHAR"'\s+(.+?)\s+Usage:'"$USAGESTRING"'\s*$'
+        local SECSTART='^\s*'"$HELPCHAR$HELPCHAR$HELPCHAR"'\s+(.+?)\s+Usage:'"$SECTION_STRING"'\s*$'
         local SECEND='^\s*'"$HELPCHAR$HELPCHAR$HELPCHAR"'\s*/doc\s*$'
         local insec=false
 
@@ -79,17 +93,49 @@ function autohelp:print {
 	echo ""
 }
 
-### automatic help Usage:main
+### autohelp:paged Usage:bbuild
 #
-# automatically call help if "--help" is detected in arguments
+# Display the help in the pager defined in the PAGER environment variable
 #
 ###/doc
-if [[ "$*" =~ --help ]]; then
-	cols="$(tput cols)"
-	autohelp:print | fold -w "$cols" -s || autohelp:print
-	exit 0
-fi
-### main:script SCRIPTNAME FUNCTION [ARGUMENTS ...] Usage:bbuild
+function autohelp:paged {
+	: ${PAGER=less}
+	autohelp:print "$@" | $PAGER
+}
+
+### autohelp:check Usage:bbuild
+#
+# Automatically print help and exit if "--help" is detected in arguments
+#
+# Example use:
+#
+#	#!/bin/bash
+#
+#	### Some help Usage:help
+#	#
+#	# Some help text
+#	#
+#	###/doc
+#
+#	#%include autohelp.sh
+#
+#	main() {
+#		autohelp:check "$@"
+#
+#		# now add your code
+#	}
+#
+#	main "$@"
+#
+###/doc
+autohelp:check() {
+	if [[ "$*" =~ --help ]]; then
+		cols="$(tput cols)"
+		autohelp:print | fold -w "$cols" -s || autohelp:print
+		exit 0
+	fi
+}
+### runmain SCRIPTNAME FUNCTION [ARGUMENTS ...] Usage:bbuild
 #
 # Runs the function FUNCTION with ARGUMENTS, only if the runtime
 # name of the script matches SCRIPTNAME
@@ -105,7 +151,7 @@ fi
 #
 # 	runmain archiveimages.sh archive_images "$@"
 #
-# When included a different script, the main:script call does not fire the lib's function
+# When included a different script, the runmain call does not fire the lib's function
 #
 # If the lib is compiled/made executable, and named "archiveimages.sh", the function runs.
 #
@@ -127,52 +173,46 @@ set -euo pipefail
 
 #!/bin/bash
 
-### abspath Usage:bbuild
+### abspath:path RELATIVEPATH Usage:bbuild
 # Returns the absolute path of a file/directory
-#
-# Exposes two functions
-#
-#     abspath:path
-#     abspath:simple
-#
-# Do not use the python-based 'abspath:path' for intensitve resolution;
-# instead, use native 'abspath:simple' which is at least 170 times
-# more efficient, at the cost of perhaps being potentially
-# dumber (simply collapses '/./' and '/../').
-# 
-# Neither utility expands softlinks.
-#
-# If python is not found, abspath:path falls back to abspath:simple systematically.
 ###/doc
 
 function abspath:path {
-	local newvar=${1//"'"/"\\'"}
-	(
-		set +eu
-		if which python >/dev/null 2>&1; then
-			python  -c "import os ; print os.path.abspath('$newvar')"
-		elif which python3 >/dev/null 2>&1 ; then
-			python3 -c "import os ; print(os.path.abspath('$newvar') )"
-		else
-			abspath:simple "$newvar"
-		fi
-	)
-}
-
-# More efficient by a factor of at least 170:1
-# compared to spinning up a python process every time
-function abspath:simple {
 	local workpath="$1"
 	if [[ "${workpath:0:1}" != "/" ]]; then workpath="$PWD/$workpath"; fi
-	for x in {1..50}; do # set a limit on how many iterations - only very stupid paths will get us here.
-		if [[ "$workpath" =~ '/../' ]] || [[ "$workpath" =~ '/./' ]]; then
-			workpath="$(echo "$workpath"|sed -r -e 's#/./#/#g' -e 's#([^/]+)/../#\1/#g' -e 's#/.$##' -e 's#([^/]+)/..$#\1#' )"
-		else
+
+	workpath="$(abspath:strip_dot "$workpath")"
+	abspath:resolve_dotdot "$workpath" | sed -r 's|/$||'
+}
+
+function abspath:strip_dot {
+	echo "$1" | sed -r 's@/\./@/@g;s@/.$@@'
+}
+
+function abspath:resolve_dotdot {
+	local workpath="$1"; shift
+
+	# Set a limit on how many iterations to perform
+	# Only very obnoxious paths should fail
+	for x in {1..50}; do
+		#out:info "Iteration $x : $workpath"
+
+		# No more dot-dots - good to go
+		if [[ ! "$workpath" =~ /\.\.(/|$) ]]; then
 			echo "$workpath"
 			return 0
 		fi
+
+		# Starts with an up-one at root - unresolvable
+		if [[ "$workpath" =~ ^/\.\.(/|$) ]]; then
+			return 1
+		fi
+
+		workpath="$(echo "$workpath"|sed -r 's@[^/]+/\.\.(/|$)@@;s@/$@@')"
 	done
-	return 1 # hopefully we never get here
+
+	# A very obnoxious path was used.
+	return 1
 }
 
 : ${ext_tgz=.tar.gz}
@@ -205,6 +245,11 @@ core_name() {
 }
 
 tgzzip:main() {
+	if [[ "$*" =~ --help ]]; then
+		autohelp:print
+		exit 0
+	fi
+
 	for item in "$@"; do
 		local core_name="$(core_name "$item")"
 		local filepath="$(abspath "$item")"

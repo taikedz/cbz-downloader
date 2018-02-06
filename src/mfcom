@@ -44,6 +44,7 @@ LASTINDEXFILE="last-tried.txt"
 #%include runmain.sh
 #%include out.sh autohelp.sh varify.sh
 #%include comicarchive
+#%include searchpaths.sh
 
 wgetdl() {
 	local downloadfile="$1"; shift
@@ -97,7 +98,8 @@ do_unzip() {
 
 set_image_extension() {
 	local imagefile="$1"; shift
-	local imagetype="$(file "$imagefile"|egrep -oi 'jpeg|jpg|png|gif' | tr '[:upper:]' '[:lower:]')"
+	local typestring="$(file "$imagefile")"
+	local imagetype="$(echo "$typestring"|egrep -oi 'jpeg|jpg|png|gif' | tr '[:upper:]' '[:lower:]')"
 	local extension=bin
 
 	out:debug "Renaming $imagefile"
@@ -108,7 +110,10 @@ set_image_extension() {
 		png|gif)
 			extension="$imagetype" ;;
 		*)
-			out:warn "Could not determine extension for $imagefile"
+			out:warn "Could not determine extension for [$imagefile] : $typestring)"
+			out:debug "    (using $noimgf instead)"
+			rm "$imagefile" 2>/dev/null || :
+			cp "$noimgf" "${imagefile}.png"
 			return ;;
 	esac
 
@@ -171,6 +176,7 @@ download_chapter() {
 
 	[[ "$i" -gt 0 ]] || {
 		out:warn "Nothing downloaded !"
+		rm -r "$targetdir"
 		return
 	}
 
@@ -276,6 +282,14 @@ announce_setup() {
 	sleep 2
 }
 
+get_noimg() {
+	local nilplaces
+	nilplaces="$HOME/.local/lib/mfcom:/usr/local/lib/mfcom"
+	noimgf="$(searchpaths:file_from "$nilplaces" none.png)"
+
+	[[ -n "$noimgf" ]] || out:fail "Could not find nil image none.png amongst [$nilplaces]"
+}
+
 main() {
 	if [[ -z "$*" ]]; then
 		autohelp:print
@@ -285,6 +299,8 @@ main() {
 	: ${MFCOM_UAGENT="Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0"}
 
 	: ${MFCOM_WAIT=2}
+
+	get_noimg
 
 	get_main_url "$1"; shift
 	setup_configuration "${1:-}" "${2:-}"
