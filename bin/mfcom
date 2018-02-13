@@ -34,6 +34,13 @@
 # 	mangafox seems to throttle access from IPs that download too much too fast
 # 	set to 0 for no delay
 #
+# MFCOM_NOEXIT=<bool>
+# 	whether or not to exit after a failure, or keep going; default is false (will exit on failure)
+#
+# MFCOM_CHTRIES=<int>
+# 	how many times to try downloading a chapter that has errors; default 1
+# 	requires MFCOM_NOEXIT=true to perform more than one retry attempt
+#
 ###/doc
 
 set -euo pipefail
@@ -83,23 +90,17 @@ function runmain {
 #
 # Example:
 # 	
-# 	echo -e "${CRED}Some red text ${CBBLU} some blue text $CDEF some text in the terminal's default colour"
-#
-# Requires processing of escape characters.
+# 	echo "${CRED}Some red text ${CBBLU} some blue text $CDEF some text in the terminal's default colour"
 #
 # Colours available:
 #
-# CRED, CBRED, HLRED -- red, bold red, highlight red
-# CGRN, CBGRN, HLGRN -- green, bold green, highlight green
-# CYEL, CBYEL, HLYEL -- yellow, bold yellow, highlight yellow
-# CBLU, CBBLU, HLBLU -- blue, bold blue, highlight blue
-# CPUR, CBPUR, HLPUR -- purple, bold purple, highlight purple
-# CTEA, CBTEA, HLTEA -- teal, bold teal, highlight teal
-#
 # CDEF -- switches to the terminal default
-# CUNL -- add underline
 #
-# Note that highlight and underline must be applied or re-applied after specifying a colour.
+# CRED, CBRED -- red, bold red
+# CGRN, CBGRN -- green, bold green
+# CYEL, CBYEL -- yellow, bold yellow
+# CBLU, CBBLU -- blue, bold blue
+# CPUR, CBPUR -- purple, bold purple
 #
 ###/doc
 
@@ -108,22 +109,11 @@ export CGRN="\033[0;32m"
 export CYEL="\033[0;33m"
 export CBLU="\033[0;34m"
 export CPUR="\033[0;35m"
-export CTEA="\033[0;36m"
-
 export CBRED="\033[1;31m"
 export CBGRN="\033[1;32m"
 export CBYEL="\033[1;33m"
 export CBBLU="\033[1;34m"
 export CBPUR="\033[1;35m"
-export CBTEA="\033[1;36m"
-
-export HLRED="\033[41m"
-export HLGRN="\033[42m"
-export HLYEL="\033[43m"
-export HLBLU="\033[44m"
-export HLPUR="\033[45m"
-export HLTEA="\033[46m"
-
 export CDEF="\033[0m"
 
 ### Console output handlers Usage:bbuild
@@ -142,19 +132,13 @@ export CDEF="\033[0m"
 : ${MODE_DEBUG=false}
 : ${MODE_DEBUG_VERBOSE=false}
 
-# Internal
-function out:buffer_initialize {
-	OUTPUT_BUFFER_defer=(:)
-}
-out:buffer_initialize
-
 ### out:debug MESSAGE Usage:bbuild
 # print a blue debug message to stderr
 # only prints if MODE_DEBUG is set to "true"
 ###/doc
 function out:debug {
 	if [[ "$MODE_DEBUG" = true ]]; then
-		echo -e "${CBBLU}DEBUG: $CBLU$*$CDEF" 1>&2
+		echo -e "${CBBLU}DEBUG:$CBLU$*$CDEF" 1>&2
 	fi
 }
 
@@ -169,41 +153,7 @@ function out:info {
 # print a yellow warning message to stderr
 ###/doc
 function out:warn {
-	echo -e "${CBYEL}WARN: $CYEL$*$CDEF" 1>&2
-}
-
-### out:defer MESSAGE Usage:bbuild
-# Store a message in the output buffer for later use
-###/doc
-function out:defer {
-	OUTPUT_BUFFER_defer[${#OUTPUT_BUFFER_defer[@]}]="$*"
-}
-
-### out:flush HANDLER ... Usage:bbuild
-#
-# Pass the output buffer to the command defined by HANDLER
-# and empty the buffer
-#
-# Examples:
-#
-# 	out:flush echo -e
-#
-# 	out:flush out:warn
-#
-# (escaped newlines are added in the buffer, so `-e` option is
-#  needed to process the escape sequences)
-#
-###/doc
-function out:flush {
-	[[ -n "$*" ]] || out:fail "Did not provide a command for buffered output\n\n${OUTPUT_BUFFER_defer[*]}"
-
-	[[ "${#OUTPUT_BUFFER_defer[@]}" -gt 1 ]] || return
-
-	for buffer_line in "${OUTPUT_BUFFER_defer[@]:1}"; do
-		"$@" "$buffer_line"
-	done
-
-	out:buffer_initialize
+	echo -e "${CBYEL}WARN:$CYEL $*$CDEF" 1>&2
 }
 
 ### out:fail [CODE] MESSAGE Usage:bbuild
@@ -219,17 +169,8 @@ function out:fail {
 		ERCODE="$1"; shift
 	fi
 
-	echo -e "${CBRED}ERROR FAIL: $CRED$*$CDEF" 1>&2
+	echo -e "${CBRED}ERROR FAIL:$CRED$*$CDEF" 1>&2
 	exit $ERCODE
-}
-
-### out:error MESSAGE Usage:bbuild
-# print a red error message to stderr
-#
-# unlike out:fail, does not cause script exit
-###/doc
-function out:error {
-	echo -e "${CBRED}ERROR: ${CRED}$*$CDEF" 1>&2
 }
 
 ### out:dump Usage:bbuild
@@ -253,14 +194,14 @@ function out:dump {
 #
 # Add break points to a script
 #
-# Requires MODE_DEBUG set to true
+# Requires debug mode set to true
 #
 # When the script runs, the message is printed with a propmt, and execution pauses.
 #
-# Press return to continue execution.
-#
 # Type `exit`, `quit` or `stop` to stop the program. If the breakpoint is in a subshell,
 #  execution from after the subshell will be resumed.
+#
+# Press return to continue execution.
 #
 ###/doc
 
@@ -273,15 +214,13 @@ function out:break {
 	fi
 }
 
-if [[ "$MODE_DEBUG_VERBOSE" = true ]]; then
-	set -x
-fi
+[[ "$MODE_DEBUG_VERBOSE" = true ]] && set -x || :
 #!/bin/bash
 
-### autohelp:print [ SECTION [FILE] ] Usage:bbuild
+### autohelp:print Usage:bbuild
 # Write your help as documentation comments in your script
 #
-# If you need to output the help from your script, or a file, call the
+# If you need to output the help from a running script, call the
 # `autohelp:print` function and it will print the help documentation
 # in the current script to stdout
 #
@@ -296,19 +235,14 @@ fi
 #	#
 #	###/doc
 #
-# You can set a different help section by specifying a subsection
-#
-# 	autohelp:print section2
-#
-# > This would print a section defined in this way:
-#
-# 	### Some title Usage:section2
-# 	# <some content>
-# 	###/doc
-#
 # You can set a different comment character by setting the 'HELPCHAR' environment variable:
 #
 # 	HELPCHAR=%
+# 	autohelp:print
+#
+# You can set a different help section by specifying the 'SECTION_STRING' variable
+#
+# 	SECTION_STRING=subsection autohelp:print
 #
 ###/doc
 
@@ -345,48 +279,16 @@ function autohelp:print {
 	echo ""
 }
 
-### autohelp:paged Usage:bbuild
+### automatic help Usage:main
 #
-# Display the help in the pager defined in the PAGER environment variable
-#
-###/doc
-function autohelp:paged {
-	: ${PAGER=less}
-	autohelp:print "$@" | $PAGER
-}
-
-### autohelp:check Usage:bbuild
-#
-# Automatically print help and exit if "--help" is detected in arguments
-#
-# Example use:
-#
-#	#!/bin/bash
-#
-#	### Some help Usage:help
-#	#
-#	# Some help text
-#	#
-#	###/doc
-#
-#	#%include autohelp.sh
-#
-#	main() {
-#		autohelp:check "$@"
-#
-#		# now add your code
-#	}
-#
-#	main "$@"
+# automatically call help if "--help" is detected in arguments
 #
 ###/doc
-autohelp:check() {
-	if [[ "$*" =~ --help ]]; then
-		cols="$(tput cols)"
-		autohelp:print | fold -w "$cols" -s || autohelp:print
-		exit 0
-	fi
-}
+if [[ "$*" =~ --help ]]; then
+	cols="$(tput cols)"
+	autohelp:print | fold -w "$cols" -s || autohelp:print
+	exit 0
+fi
 #!/bin/bash
 
 ### Varify Usage:bbuild
@@ -528,46 +430,52 @@ bincheck:path() {
 
 #!/bin/bash
 
-### abspath:path RELATIVEPATH Usage:bbuild
+### abspath Usage:bbuild
 # Returns the absolute path of a file/directory
+#
+# Exposes two functions
+#
+#     abspath:path
+#     abspath:simple
+#
+# Do not use the python-based 'abspath:path' for intensitve resolution;
+# instead, use native 'abspath:simple' which is at least 170 times
+# more efficient, at the cost of perhaps being potentially
+# dumber (simply collapses '/./' and '/../').
+# 
+# Neither utility expands softlinks.
+#
+# If python is not found, abspath:path falls back to abspath:simple systematically.
 ###/doc
 
 function abspath:path {
+	local newvar=${1//"'"/"\\'"}
+	(
+		set +eu
+		if which python >/dev/null 2>&1; then
+			python  -c "import os ; print os.path.abspath('$newvar')"
+		elif which python3 >/dev/null 2>&1 ; then
+			python3 -c "import os ; print(os.path.abspath('$newvar') )"
+		else
+			abspath:simple "$newvar"
+		fi
+	)
+}
+
+# More efficient by a factor of at least 170:1
+# compared to spinning up a python process every time
+function abspath:simple {
 	local workpath="$1"
 	if [[ "${workpath:0:1}" != "/" ]]; then workpath="$PWD/$workpath"; fi
-
-	workpath="$(abspath:strip_dot "$workpath")"
-	abspath:resolve_dotdot "$workpath" | sed -r 's|/$||'
-}
-
-function abspath:strip_dot {
-	echo "$1" | sed -r 's@/\./@/@g;s@/.$@@'
-}
-
-function abspath:resolve_dotdot {
-	local workpath="$1"; shift
-
-	# Set a limit on how many iterations to perform
-	# Only very obnoxious paths should fail
-	for x in {1..50}; do
-		#out:info "Iteration $x : $workpath"
-
-		# No more dot-dots - good to go
-		if [[ ! "$workpath" =~ /\.\.(/|$) ]]; then
+	for x in {1..50}; do # set a limit on how many iterations - only very stupid paths will get us here.
+		if [[ "$workpath" =~ '/../' ]] || [[ "$workpath" =~ '/./' ]]; then
+			workpath="$(echo "$workpath"|sed -r -e 's#/./#/#g' -e 's#([^/]+)/../#\1/#g' -e 's#/.$##' -e 's#([^/]+)/..$#\1#' )"
+		else
 			echo "$workpath"
 			return 0
 		fi
-
-		# Starts with an up-one at root - unresolvable
-		if [[ "$workpath" =~ ^/\.\.(/|$) ]]; then
-			return 1
-		fi
-
-		workpath="$(echo "$workpath"|sed -r 's@[^/]+/\.\.(/|$)@@;s@/$@@')"
 	done
-
-	# A very obnoxious path was used.
-	return 1
+	return 1 # hopefully we never get here
 }
 
 make_archive:remove() {
@@ -678,7 +586,7 @@ function searchpaths:file_from {
 wgetdl() {
 	local downloadfile="$1"; shift
 	if [[ -z "$*" ]]; then
-		out:warn "Error downloading $downloadfile"
+		out:warn "Nothing specified for $downloadfile"
 		return 404
 	fi
 
@@ -699,6 +607,10 @@ extract_links() {
 		grep -Po "$U_MAINPAGE_NOSCHEME[^\"]+" | \
 		sed -r 's|^|http:|' | tac \
 		> "$targetfile"
+}
+
+exit_on_fail() {
+	[[ "${MFCOM_NOEXIT:-}" != true ]]
 }
 
 unzero() {
@@ -753,22 +665,31 @@ set_image_extension() {
 
 download_chapter_page() {
 	local pageurl="$1"; shift
-	local targetfile="$1"; shift
+	local targetdir="$1"; shift
+	local pagename="$1"; shift
+	local max_attempts="$1"; shift # For another time...
+
+	local targetfile="$targetdir/$pagename"
+	local datafile="$targetdir/pagedata.html"
 
 	out:info "Download [$pageurl] to [$targetfile]"
 
-	wgetdl "$targetfile" "$pageurl"
-	[[ "$?" = 404 ]] && out:fail 404 "Page not found"
+	wgetdl "$datafile" "$pageurl" || {
+		out:warn "Page not found"
+		return 1
+	}
 
-	local imgurl="$(grep '<img' "$targetfile"|grep 'id="image"'|grep -oP 'src="[^"]+')"
+	local imgurl="$(grep '<img' "$datafile"|grep 'id="image"'|grep -oP 'src="[^"]+')"
 
 	out:debug "Cutting $imgurl"
 
 	imgurl="${imgurl:5}"
 
 	out:debug "$imgurl : $targetfile"
-	wgetdl "$targetfile" "$imgurl"
-	[[ "$?" = 404 ]] && out:fail 404 "Image not found"
+	wgetdl "$targetfile" "$imgurl" || {
+		out:warn "Image not found [$imgurl] from [$datafile]"
+		return 2
+	}
 	set_image_extension "$targetfile"
 }
 
@@ -796,11 +717,28 @@ download_chapter() {
 
 	local pagecount="$(grep -oP 'of\s*\d+' "$dlfile"|sort|uniq|cut -d' ' -f2)"
 
-	local i=0
-	while [[ "$i" -lt "$pagecount" ]]; do
-		i=$((i+1))
-		download_chapter_page "$base_url/$i.html" "$targetdir/page_$(padnum "$i")"
-		sleep "$MFCOM_WAIT"
+	out:info "$pagecount pages to download for chapter $chapnum"
+
+	local retries=0
+	while [[ "$retries" -lt "${MFCOM_CHTRIES:-1}" ]]; do
+		retries="$((retries + 1))"
+		local i=0
+		while [[ "$i" -lt "$pagecount" ]]; do
+			i=$((i+1))
+			download_chapter_page "$base_url/$i.html" "$targetdir" "page_$(padnum "$i")" 2 || {
+				if exit_on_fail ; then
+					out:fail "Abort. Set MFCOM_NOEXIT=true to avoid exiting on page failure."
+				fi
+				break
+			}
+			sleep "$MFCOM_WAIT"
+		done
+		if [[ "$i" != "$pagecount" ]]; then
+			out:warn "Chapter retries: MFCOM_CHTRIES=${MFCOM_CHTRIES:-1}"
+		else
+			rm "$targetdir/pagedata.html" || :
+			break
+		fi
 	done
 
 	[[ "$i" -gt 0 ]] || {

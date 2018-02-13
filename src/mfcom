@@ -34,6 +34,13 @@
 # 	mangafox seems to throttle access from IPs that download too much too fast
 # 	set to 0 for no delay
 #
+# MFCOM_NOEXIT=<bool>
+# 	whether or not to exit after a failure, or keep going; default is false (will exit on failure)
+#
+# MFCOM_CHTRIES=<int>
+# 	how many times to try downloading a chapter that has errors; default 1
+# 	requires MFCOM_NOEXIT=true to perform more than one retry attempt
+#
 ###/doc
 
 set -euo pipefail
@@ -49,7 +56,7 @@ LASTINDEXFILE="last-tried.txt"
 wgetdl() {
 	local downloadfile="$1"; shift
 	if [[ -z "$*" ]]; then
-		out:warn "Error downloading $downloadfile"
+		out:warn "Nothing specified for $downloadfile"
 		return 404
 	fi
 
@@ -70,6 +77,10 @@ extract_links() {
 		grep -Po "$U_MAINPAGE_NOSCHEME[^\"]+" | \
 		sed -r 's|^|http:|' | tac \
 		> "$targetfile"
+}
+
+exit_on_fail() {
+	[[ "${MFCOM_NOEXIT:-}" != true ]]
 }
 
 unzero() {
@@ -124,22 +135,31 @@ set_image_extension() {
 
 download_chapter_page() {
 	local pageurl="$1"; shift
-	local targetfile="$1"; shift
+	local targetdir="$1"; shift
+	local pagename="$1"; shift
+	local max_attempts="$1"; shift # For another time...
+
+	local targetfile="$targetdir/$pagename"
+	local datafile="$targetdir/pagedata.html"
 
 	out:info "Download [$pageurl] to [$targetfile]"
 
-	wgetdl "$targetfile" "$pageurl"
-	[[ "$?" = 404 ]] && out:fail 404 "Page not found"
+	wgetdl "$datafile" "$pageurl" || {
+		out:warn "Page not found"
+		return 1
+	}
 
-	local imgurl="$(grep '<img' "$targetfile"|grep 'id="image"'|grep -oP 'src="[^"]+')"
+	local imgurl="$(grep '<img' "$datafile"|grep 'id="image"'|grep -oP 'src="[^"]+')"
 
 	out:debug "Cutting $imgurl"
 
 	imgurl="${imgurl:5}"
 
 	out:debug "$imgurl : $targetfile"
-	wgetdl "$targetfile" "$imgurl"
-	[[ "$?" = 404 ]] && out:fail 404 "Image not found"
+	wgetdl "$targetfile" "$imgurl" || {
+		out:warn "Image not found [$imgurl] from [$datafile]"
+		return 2
+	}
 	set_image_extension "$targetfile"
 }
 
@@ -167,11 +187,28 @@ download_chapter() {
 
 	local pagecount="$(grep -oP 'of\s*\d+' "$dlfile"|sort|uniq|cut -d' ' -f2)"
 
-	local i=0
-	while [[ "$i" -lt "$pagecount" ]]; do
-		i=$((i+1))
-		download_chapter_page "$base_url/$i.html" "$targetdir/page_$(padnum "$i")"
-		sleep "$MFCOM_WAIT"
+	out:info "$pagecount pages to download for chapter $chapnum"
+
+	local retries=0
+	while [[ "$retries" -lt "${MFCOM_CHTRIES:-1}" ]]; do
+		retries="$((retries + 1))"
+		local i=0
+		while [[ "$i" -lt "$pagecount" ]]; do
+			i=$((i+1))
+			download_chapter_page "$base_url/$i.html" "$targetdir" "page_$(padnum "$i")" 2 || {
+				if exit_on_fail ; then
+					out:fail "Abort. Set MFCOM_NOEXIT=true to avoid exiting on page failure."
+				fi
+				break
+			}
+			sleep "$MFCOM_WAIT"
+		done
+		if [[ "$i" != "$pagecount" ]]; then
+			out:warn "Chapter retries: MFCOM_CHTRIES=${MFCOM_CHTRIES:-1}"
+		else
+			rm "$targetdir/pagedata.html" || :
+			break
+		fi
 	done
 
 	[[ "$i" -gt 0 ]] || {
