@@ -1,50 +1,41 @@
-# Mangafox Compiler
+# CBZ Comic Downloader
 
-Download full mangas from mangafox.
+Download comics from the web and save them as CBZ files for reading.
 
-## Requirements
+CBZ Downloader is a lightly extensible comic downloader, that can assemble comic pages by chapter into CBZ files for use in comic readers, available for [desktop](https://lifehacker.com/5858906/five-best-desktop-comic-book-readers) and [mobile](https://thedroidguy.com/2018/01/5-best-comic-book-reader-apps-android-device-2018-1069923).
 
-Written with Ubuntu users in mind
+## Supported sites
 
-Should also work on any GNU/Linux
-	* Debian
-	* Fedora
-	* Arch
-	* etc ...
+This is the list of sites cbzdl knows how to download from.
 
-Probably works on Windows using Cygwin and the appropriate standard GNU tools. Note that you will need `zip` command to create Comic Book Archive (cbz) files
+* Mangakakalot.com
 
-May work on BSD/macOS/UNIX but I cannot guarantee this in the slightest...
+## Installing
 
-## Install
+You will need [Python 3](https://www.python.org/) , you can install requirements using `pip install -r requirements.txt`
 
-Run the install script
+Then, on Linux, run
 
-	./install
+	./install.sh
 
-This installs to ~/.local/bin for the current user. To install for all users, run
+and the `cbzdl` command will be available to you.
 
-	sudo ./install
+## Using
 
-## Usage
+Simply provide a URL to download from - e.g.
 
-Run the `mfcom` command with the URL to any mangafox manga main page
+	cbzdl http://mangakakalot.com/manga/acaria
 
-For example
+To you can specify a start chapter, and end chapter (both optional, as numbers)
 
-	MFCOM_MAKE_ARCHIVE=cbz # optional - make a CBZ file
+	cbzdl URL -s START -e END
 
-	# Download pages 3 and 4 of the manga
-	mfcom 'http://mangafox.me/manga/stop_time/' 3 5
+By default, `cbzdl` will wait a bit between fetching two images (some sites throttle heavy downloaders). You can affect the delay by providing a `-d DELAY` argument.
 
-First argument is the URL to the manga main page; it can also be the folder where previous downloads have been stored.
+## Extending
 
-	# Download page 5 of the manga
-	mfcom stop_time/ 5 6
+The core CBZ Downloader takes care of managing chapter downloads and CBZ assembling ; support for individual sites must be added by modules.
 
-Second argument is the start index
+To add a new module, copy the `example_module.py` file into the `cbzdl/modules/` folder with a new name , add it to the `cbzdl/ComicEngine.py` main list, and implement for the site you want.
 
-Third argument is the end index; requires start index to have been specified. The third index can also be "+" followed by the number of pages to download
-
-	# Download pages 3 and 4 (2 pages)
-	mfcom 'http://mangafox.me/manga/stop_time/' 3 +2
+The `WebResource` class in `cbzdl/web.py` provides some utilities for fetching pages and data, so all you need to do is take care of extracting the relevant portions of the site you are scraping. See the existing modules for examples.

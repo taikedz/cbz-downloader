@@ -1,3 +1,6 @@
+dump*
 *http___*
 scratch/
 *.swp
+__pycache__/
+*.pyc

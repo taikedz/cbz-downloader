@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 thisdir="$(dirname "$0")"
 bindir="$HOME/.local/bin"
 libdir="$HOME/.local/lib"
@@ -7,12 +9,19 @@ libdir="$HOME/.local/lib"
 if [[ "$UID" = 0 ]]; then
 	bindir=/usr/local/bin
 	libdir=/usr/local/lib
-else
-	mkdir -p "$bindir"
-	mkdir -p "$libdir"
 fi
 
-cp "$thisdir/bin/mfcom" "$thisdir/bin/comicarchive" "$bindir"
-cp -r "$thisdir/assets" "$libdir/mfcom"
+echo "Creating bin and lib directories ..."
 
-echo "Done."
+mkdir -p "$bindir"
+mkdir -p "$libdir"
+
+echo "Copying files ..."
+
+rsync -a "$thisdir/cbzdl/" "$libdir/cbzdl/"
+if [[ ! -e "$bindir/cbzdl" ]]; then
+	ln -s "$libdir/cbzdl/main.py" "$bindir/cbzdl"
+fi
+chmod 755 "$libdir/cbzdl/main.py"
+
+echo "Installed cbzdl."
