@@ -2,6 +2,21 @@
 
 set -e
 
+# Termux is a GNU/Linux sub-environment for Android
+if which termux-info 2>/dev/null >/dev/null ; then
+	apt update && apt install python clang libxml2-dev libxslt-dev python-dev
+
+	echo "lxml compilation may take a while (maybe even 10min or more!) on Android devices ..."
+
+	pip install -r requirements.txt
+
+	# cbzdl is pretty useless if we can't put the files in an accessible location
+	if [[ ! -d "$HOME/storage" ]]; then
+		echo "Setting up storage access - you may want to download your files into ~/storage/downloads/ when operating"
+		termux-setup-storage
+	fi
+fi
+
 thisdir="$(dirname "$0")"
 bindir="$HOME/.local/bin"
 libdir="$HOME/.local/lib"
