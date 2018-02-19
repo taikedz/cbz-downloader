@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import ComicEngine
+import urllib.error
 import argparse
 import sys
 import re
@@ -73,6 +74,9 @@ def downloadChapter(cengine, chapter_url, comic_dir):
         except ComicEngine.ComicError as e:
             feedback.warn("Oops : %s"%str(e) )
             errors += 1
+        except urllib.error.URLError:
+            feedback.warn("Could not download %s"%url)
+            errors += 1
 
         time.sleep(step_delay)
 
@@ -115,6 +119,7 @@ def parseArguments():
     parser.add_argument("-s", "--start", action="store", default=0, type=int, help="Minimum chapter to start from")
     parser.add_argument("-e", "--end", action="store", default=9000, type=int, help="Maximum chapter to include (up to 9000)")
     parser.add_argument("-d", "--delay", action='store', type=int, default=1, help="Delay to introduce during download (seconds)")
+    parser.add_argument("-v", "--verbose", action='store_true', help="Verbose mode")
 
     return parser.parse_args()
 
@@ -146,6 +151,7 @@ def main():
     step_delay = args.delay
     ch_start   = args.start
     ch_end     = args.end
+    feedback.debug_mode = args.verbose
 
     cengine = ComicEngine.determineFrom(comic_url)
 

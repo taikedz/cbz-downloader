@@ -14,7 +14,7 @@ import feedback
 import ComicEngine
 
 # Edit this to list the valid domains for the site
-valid_domains = ['mangakakalot.com']
+valid_domains = ['mangakakalot.com', 'manganelo.com']
 
 class ComicSite(web.WebResource):
 

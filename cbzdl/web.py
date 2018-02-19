@@ -69,10 +69,20 @@ class WebResource:
                         return
                     else:
                         raise ComicEngine.ComicError("No data obtained!")
+                except ConnectionResetError as e:
+                    feedback.breakpoint(str(e))
+                    if retries > 0:
+                        print("Peer reset connection - retrying ...")
+                        retries -= 1
+                        time.sleep(2)
+                        continue
+                    
+                    raise ComicEngine.ComicError("Could not load %s\n%s"%(self.url, str(e)) )
+
                 except urllib.error.HTTPError as e:
                     feedback.breakpoint(str(e))
                     if code_class(e.code) == 500 and retries > 0:
-                        print("Retrying ...")
+                        print("HTTP 50x error - retrying ...")
                         retries -= 1
                         time.sleep(2)
                         continue

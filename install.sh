@@ -40,3 +40,4 @@ fi
 chmod 755 "$libdir/cbzdl/main.py"
 
 echo "Installed cbzdl."
+echo "Ensure you have lxml (\`[sudo] pip install lxml\`)"
