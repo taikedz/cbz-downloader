@@ -18,10 +18,10 @@ valid_domains = ['example.com', 'm.example.com']
 class ComicSite(web.WebResource):
 
     def __ini__(self, url):
-        self.validateUrl(url)
+        url = self.validateUrl(url)
 
         web.WebResource.__init__(self, url)
-        self.domain = web.extractDomain()
+        self.domain = web.extractDomain(url)
 
     def validateUrl(self, url):
         """ If you want to rewrite the URL before accessing it, modify this section
@@ -33,9 +33,6 @@ class Comic(ComicSite):
     def __init__(self, url):
         ComicSite.__init__(self, url)
 
-    def getTitle(self):
-        pass
-
     def getComicLowerName(self):
         pass
 
@@ -46,6 +43,9 @@ class Chapter(ComicSite):
     
     def __init__(self, url):
         ComicSite.__init__(self, url)
+
+    def getChapterLowerName(self):
+        pass
 
     def getChapterNumber(self):
         pass

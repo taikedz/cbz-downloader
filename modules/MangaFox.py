@@ -50,7 +50,7 @@ class Comic(ComicSite):
         if len(urls) < 1:
             raise ComicEngine.ComicError("No URLs returned from %s"%self.url)
 
-        util.natural_sort(urls) # I've seen one series which was a load of "chapter 1" in different volumes... how to deal with that ?
+        util.naturalSort(urls) # I've seen one series which was a load of "chapter 1" in different volumes... how to deal with that ?
         feedback.debug(urls)
         return urls
 
@@ -92,7 +92,7 @@ class Chapter(ComicSite):
 
             urls.append( "%s/%i.html" % (base_url, v) )
 
-        util.natural_sort(urls, ".+/c([0-9.]+)/")
+        util.naturalSort(urls, ".+/c([0-9.]+)/")
         return urls
 
 class Page(ComicSite):

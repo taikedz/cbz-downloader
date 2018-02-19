@@ -1,19 +1,10 @@
 import re
 import importlib
 
-# ==================================================
-# Add your engine modules to this list !
-engine_files = [
-    "modules.MangaFox",
-#    "modules.MangaHere",
-#    "modules.MangaReader",
-    "modules.Mangakakalot"
-    ]
+import modules.moduleslist
 
 def getAvailableEngineFiles():
-    # TODO Automate discovery?
-
-    return engine_files
+    return modules.moduleslist.engine_files
 
 class ComicError(Exception):
     def __init__(self, message):

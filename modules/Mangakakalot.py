@@ -34,9 +34,6 @@ class Comic(ComicSite):
         ComicSite.__init__(self, url)
         self.lowername = re.match("http://%s/manga/([^/]+)"%(self.domain), self.url).group(1)
 
-    def getTitle(self):
-        return self.searchInSource("<h1>(.+)</h1>", group=1)
-
     def getComicLowerName(self):
         return self.lowername
 
