@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import filesys
 import ComicEngine
 import urllib.error
 import argparse
@@ -123,23 +124,29 @@ def parseArguments():
 
     return parser.parse_args()
 
-def extract_url(url):
+def extractUrl(url):
     if not os.path.isdir(url):
         return url
 
-    sourceurl_file = "%s/source.url"%url
+    sourceurl_file = os.path.sep.join([url, "source.url"])
 
     if os.path.isfile(sourceurl_file):
         fh = open(sourceurl_file, 'r')
         url = fh.read().strip()
         fh.close()
     else:
-        filesys.ensureDirFor(sourceurl_file)
-        fh = open(sourceurl_file, 'w')
-        fh.write(url)
-        fh.close()
+        raise ComicEngine.ComicError("No source.url file in %s"%url)
 
     return url
+
+def saveUrl(cengine, url):
+    comic_dir = cengine.Comic(url).getComicLowerName()
+    sourceurl_file = os.path.sep.join([comic_dir, "source.url"])
+
+    filesys.ensureDirectoryFor(sourceurl_file)
+    fh = open(sourceurl_file, 'w')
+    fh.write(url)
+    fh.close()
 
 def main():
     global step_delay
@@ -147,13 +154,15 @@ def main():
     global ch_end
 
     args       = parseArguments()
-    comic_url  = extract_url(args.url)
+    comic_url  = extractUrl(args.url)
+
     step_delay = args.delay
     ch_start   = args.start
     ch_end     = args.end
     feedback.debug_mode = args.verbose
 
     cengine = ComicEngine.determineFrom(comic_url)
+    saveUrl(cengine, comic_url)
 
     failed = downloadComic(cengine, comic_url)
 

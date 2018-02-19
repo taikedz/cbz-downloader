@@ -1,14 +1,17 @@
 #!/bin/bash
 
 set -e
+is_termux() {
+	which termux-info 2>/dev/null >/dev/null
+}
+
+pipcmd=pip3
 
 # Termux is a GNU/Linux sub-environment for Android
-if which termux-info 2>/dev/null >/dev/null ; then
-	apt update && apt install python clang libxml2-dev libxslt-dev python-dev
+if is_termux ; then
+	apt update && apt install python clang libxml2-dev libxslt-dev python-dev rsync
 
-	echo "lxml compilation may take a while (maybe even 10min or more!) on Android devices ..."
-
-	pip install -r requirements.txt
+	pipcmd=pip
 
 	# cbzdl is pretty useless if we can't put the files in an accessible location
 	if [[ ! -d "$HOME/storage" ]]; then
@@ -26,6 +29,11 @@ if [[ "$UID" = 0 ]]; then
 	libdir=/usr/local/lib
 fi
 
+if is_termux; then
+	echo "lxml compilation may take a while (maybe even 10min or more!) on Android devices ..."
+fi
+PATH="$libdir:$PATH" "$pipcmd" install -r requirements.txt
+
 echo "Creating bin and lib directories ..."
 
 mkdir -p "$bindir"
@@ -40,4 +48,3 @@ fi
 chmod 755 "$libdir/cbzdl/main.py"
 
 echo "Installed cbzdl."
-echo "Ensure you have lxml (\`[sudo] pip install lxml\`)"
