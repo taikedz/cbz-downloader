@@ -9,6 +9,7 @@ To create a new module:
 
 import web
 import re
+import util
 import base64
 import feedback
 import ComicEngine
@@ -32,7 +33,7 @@ class Comic(ComicSite):
     
     def __init__(self, url):
         ComicSite.__init__(self, url)
-        self.lowername = re.match("http://%s/manga/([^/]+)"%(self.domain), self.url).group(1)
+        self.lowername = util.regexGroup("http://%s/manga/([^/]+)"%(self.domain), self.url)
 
     def getComicLowerName(self):
         return self.lowername
@@ -48,10 +49,10 @@ class Chapter(ComicSite):
         ComicSite.__init__(self, url)
 
     def getChapterNumber(self):
-        return re.match(".+/chapter_(.+)$", self.url).group(1)
+        return util.regexGroup(".+/chapter_(.+)$", self.url)
 
     def getChapterLowerName(self):
-        comicname = re.match(".+/chapter/([^/]+)", self.url).group(1)
+        comicname = util.regexGroup(".+/chapter/([^/]+)", self.url)
         return "%s_ch%s" % (comicname, self.getChapterNumber().zfill(3) )
 
     def getPageUrls(self):
@@ -64,7 +65,7 @@ class Chapter(ComicSite):
         for img in image_nodes:
             imgurl = img.attrib['src']
             feedback.debug(imgurl)
-            pagenum = i #re.match(".+?([0-9]+)\\.[a-z]+$", imgurl).group(1)
+            pagenum = i #util.regexGroup(".+?([0-9]+)\\.[a-z]+$", imgurl)
             i += 1
 
             if re.match(".+/nextchap.png", imgurl):
@@ -79,8 +80,8 @@ class Page(ComicSite):
     
     def __init__(self, url):
         ComicSite.__init__(self, url)
-        self.pagenum = re.match(".+n=([0-9]+)", self.url).group(1)
-        self.imgurl = base64.urlsafe_b64decode( re.match(".+u=([^&]+)", self.url).group(1) ).decode("utf-8")
+        self.pagenum = util.regexGroup(".+n=([0-9]+)", self.url)
+        self.imgurl = base64.urlsafe_b64decode( util.regexGroup(".+u=([^&]+)", self.url) ).decode("utf-8")
 
     def getPageNumber(self):
         return self.pagenum

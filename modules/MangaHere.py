@@ -22,7 +22,7 @@ class ComicSite(web.WebResource):
         url = self.validateUrl(url)
 
         web.WebResource.__init__(self, url)
-        self.domain = web.extractDomain(url)
+        self.domain = web.getUrlComponents(url, 2)
 
     def validateUrl(self, url):
         """ If you want to rewrite the URL before accessing it, modify this section
@@ -35,7 +35,7 @@ class Comic(ComicSite):
         ComicSite.__init__(self, url)
 
     def getComicLowerName(self):
-        return re.match(".+/manga/([^/]+)", self.url).group(1)
+        return util.regexGroup(".+/manga/([^/]+)", self.url)
 
     def getChapterUrls(self):
         doc = self.getDomObject()
@@ -63,7 +63,7 @@ class Chapter(ComicSite):
         ComicSite.__init__(self, url)
 
     def getChapterNumber(self):
-        return int( re.match(".+?/c([0-9.]+)$", self.url).group(1) )
+        return int( util.regexGroup(".+?/c([0-9.]+)$", self.url) )
 
     def getChapterLowerName(self):
         parts = re.match(".+/manga/([^/]+)/(c[0-9.]+)", self.url)
@@ -91,7 +91,7 @@ class Page(ComicSite):
         ComicSite.__init__(self, url)
 
     def getPageNumber(self):
-        return re.match(".+/([0-9]+).html$", self.url).group(1)
+        return util.regexGroup(".+/([0-9]+).html$", self.url)
 
     def getImageUrl(self):
         return self.getDomObject().get_element_by_id("image").attrib['src']

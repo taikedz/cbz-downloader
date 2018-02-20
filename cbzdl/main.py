@@ -32,22 +32,38 @@ step_delay = 1
 ch_start = 0
 ch_end = 9000
 
-def url_display(url):
-    if len(url) > 60:
-        return "%s ... %s"%(url[:30],url[-30:])
+def abbreviateUrl(url, max=60):
+    """ Reduce long URLs for screen display
+    """
+    if len(url) > max:
+        mid = int( (max - 5)/2 )
+        return "%s ... %s"%(url[:mid],url[-mid:])
     return url
 
 def downloadPage(cengine, page_url, chapter_dir):
-    feedback.info("    Fetch %s"%url_display(page_url) )
+    """ Download an individual page
+
+    Takes care of zero-padding page numbers
+    """
+    feedback.info("    Fetch %s"%abbreviateUrl(page_url) )
     page        = cengine.Page(page_url)
 
     image_url   = page.getImageUrl()
     resource    = web.WebResource(image_url)
+    # TODO pre-detect existing pages, don't re-download
     image_file  = os.path.sep.join( [chapter_dir, 'page_' + page.getPageNumber().zfill(4) + '.' + resource.getExtension()] )
 
     resource.saveTo(image_file)
 
 def downloadChapter(cengine, chapter_url, comic_dir):
+    """ Kicks off the page downloads for a chapter
+
+    Checks whether chapter number is within specified bounds
+    
+    On completion, if there were no page download errors, attempts CBZ creation
+
+    Returns number of errors encountered
+    """
     feedback.debug("Start on %s ..."%chapter_url)
 
     global step_delay
@@ -68,7 +84,6 @@ def downloadChapter(cengine, chapter_url, comic_dir):
     chapter_dir = os.path.sep.join([comic_dir, chapter.getChapterLowerName()])
 
     errors = 0
-    feedback.breakpoint("Page URLs: %s"%str(page_urls))
     for url in page_urls:
         try:
             downloadPage(cengine, url, chapter_dir)
@@ -92,6 +107,10 @@ def downloadChapter(cengine, chapter_url, comic_dir):
     return errors
 
 def downloadComic(cengine, comic_url):
+    """ Downloads the chapters of a comic
+
+    Displays any failed chapters after execution
+    """
     feedback.info("Downloading %s"%comic_url)
 
     comic        = cengine.Comic(comic_url)
@@ -100,7 +119,6 @@ def downloadComic(cengine, comic_url):
 
     failed_chapters = []
     for url in chapter_urls:
-        feedback.breakpoint("Get chapter %s"%url)
         errors = downloadChapter(cengine, url, comic_dir)
 
         if errors == 'max':

@@ -1,5 +1,8 @@
 #!/usr/bin/python3
 
+""" Web-related utilities and classes.
+"""
+
 import urllib.request
 import urllib.error
 from lxml.html import parse as parseHTML
@@ -14,16 +17,12 @@ import feedback
 
 useragent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'
 
-def code_class(num):
-    x = num % 100
-    return num - x
-
 class WebResource:
     """ A WebResource is identified by its URL
     """
     def __init__(self, url):
         self.url = url
-        self.domain = extractDomain(url)
+        self.domain = getUrlComponents(url, 2)
         self.pagedata = None
         self.response = None
 
@@ -50,7 +49,6 @@ class WebResource:
             retries = 3
             while retries > 0:
                 feedback.debug(self.url)
-                feedback.breakpoint("(retries left: %s)" % (retries) )
                 try:
                     req = urllib.request.Request(
                         self.url,
@@ -70,7 +68,6 @@ class WebResource:
                     else:
                         raise ComicEngine.ComicError("No data obtained!")
                 except ConnectionResetError as e:
-                    feedback.breakpoint(str(e))
                     if retries > 0:
                         print("Peer reset connection - retrying ...")
                         retries -= 1
@@ -80,8 +77,7 @@ class WebResource:
                     raise ComicEngine.ComicError("Could not load %s\n%s"%(self.url, str(e)) )
 
                 except urllib.error.HTTPError as e:
-                    feedback.breakpoint(str(e))
-                    if code_class(e.code) == 500 and retries > 0:
+                    if httpCodeClass(e.code) == 500 and retries > 0:
                         print("HTTP 50x error - retrying ...")
                         retries -= 1
                         time.sleep(2)
@@ -163,5 +159,28 @@ def mapExtension(content_type):
     if content_type in extensions.keys():
         return extensions[content_type]
 
-def extractDomain(url):
-    return re.match("https?://([^/]+).+", url).group(1)
+def getUrlComponents(comic_url, group=0):
+    """ Extract the copmonents of a URL
+
+    If group == 0 , returns a tuple of (scheme, domain, path)
+
+    Else each group number returns:
+    1 - scheme
+    2 - domain
+    3 - path
+    """
+    m = re.match("^([a-z0-9]+)://([a-zA-Z0-9.-]+)(.*?)$", comic_url)
+
+    if m:
+        if group == 0:
+            return m.group(1), m.group(2), m.group(3)
+        elif group > 3:
+            raise ComicEngine.ComicError("No such group %i"%group)
+        return m.group(group)
+
+def httpCodeClass(num):
+    """ Given a HTTP code, return the denomination
+    (100, 200, 300, 400, or 500)
+    """
+    x = num % 100
+    return num - x

@@ -22,7 +22,7 @@ class ComicSite(web.WebResource):
         url = self.validateUrl(url)
 
         web.WebResource.__init__(self, url)
-        self.domain = web.extractDomain(url)
+        self.domain = web.getUrlComponents(url, 2)
 
     def validateUrl(self, url):
         """ If you want to rewrite the URL before accessing it, modify this section

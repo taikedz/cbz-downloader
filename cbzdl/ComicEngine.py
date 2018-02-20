@@ -1,23 +1,26 @@
-import re
 import importlib
+import web
 
 import modules.moduleslist
 
+""" Module to determine which module to use, given a URL
+"""
+
 def getAvailableEngineFiles():
+    "Get the list of module files"
     return modules.moduleslist.engine_files
 
 class ComicError(Exception):
+    "Standard cbzdl error"
+
     def __init__(self, message):
         Exception.__init__(self, message)
 
-def getUrlComponents(comic_url):
-    matched = re.match("^([a-z0-9]+)://([a-zA-Z0-9.-]+)(.+)$", comic_url)
-
-    if matched:
-        return matched.group(2)
-
 def determineFrom(comic_url):
-    domain = getUrlComponents(comic_url)
+    """ Return a download module determined by the URL
+    """
+
+    scheme, domain, path = web.getUrlComponents(comic_url)
 
     if domain == None:
         ComicError("Invalid URL")

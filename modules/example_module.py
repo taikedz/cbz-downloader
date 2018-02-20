@@ -17,11 +17,11 @@ valid_domains = ['example.com', 'm.example.com']
 
 class ComicSite(web.WebResource):
 
-    def __ini__(self, url):
+    def __init__(self, url):
         url = self.validateUrl(url)
 
         web.WebResource.__init__(self, url)
-        self.domain = web.extractDomain(url)
+        self.domain = web.getUrlComponents(url, 2)
 
     def validateUrl(self, url):
         """ If you want to rewrite the URL before accessing it, modify this section

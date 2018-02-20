@@ -12,7 +12,7 @@ class ComicSite(web.WebResource):
         url = self.validateUrl(url)
 
         web.WebResource.__init__(self, url)
-        self.domain = web.extractDomain(url)
+        self.domain = web.getUrlComponents(url, 2)
 
     def validateUrl(self, url):
         """ If you want to rewrite the URL before accessing it, modify this section
@@ -24,10 +24,9 @@ class Comic(ComicSite):
     def __init__(self, url):
         ComicSite.__init__(self, url)
         self.name = self.getComicLowerName()
-        self.domain = web.extractDomain(self.url)
 
     def getComicLowerName(self):
-        return re.match(".+/manga/([^/]+)", self.url).group(1)
+        return util.regexGroup(".+/manga/([^/]+)", self.url)
 
     def getChapterUrls(self):
         feedback.debug("domain: "+str(self.domain))
@@ -50,7 +49,8 @@ class Comic(ComicSite):
         if len(urls) < 1:
             raise ComicEngine.ComicError("No URLs returned from %s"%self.url)
 
-        util.naturalSort(urls) # I've seen one series which was a load of "chapter 1" in different volumes... how to deal with that ?
+        util.naturalSort(urls, ".+/c([0-9.]+)/")
+        # I've seen one series which was a load of "chapter 1" in different volumes... how to deal with that ?
         feedback.debug(urls)
         return urls
 
@@ -61,7 +61,7 @@ class Chapter(ComicSite):
 
     def getChapterNumber(self):
         # FIXME what about when volumes have same-numbered chapters ??
-        return re.match(".+/c([0-9.]+)/", self.url).group(1)
+        return util.regexGroup(".+/c([0-9.]+)/", self.url)
 
     def getChapterLowerName(self):
         chapter_lower = "%s%s%s" % ( Comic(self.url).name , "_chapter-" , self.getChapterNumber() )
@@ -92,7 +92,7 @@ class Chapter(ComicSite):
 
             urls.append( "%s/%i.html" % (base_url, v) )
 
-        util.naturalSort(urls, ".+/c([0-9.]+)/")
+        util.naturalSort(urls, ".+/([0-9.]+)\\.html")
         return urls
 
 class Page(ComicSite):
@@ -101,7 +101,7 @@ class Page(ComicSite):
         ComicSite.__init__(self, url)
 
     def getPageNumber(self):
-        return re.match(".+/([0-9]+)\\.html$", self.url).group(1)
+        return util.regexGroup(".+/([0-9]+)\\.html$", self.url)
 
     def getImageUrl(self):
         doc = self.getDomObject()
