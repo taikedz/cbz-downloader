@@ -8,6 +8,7 @@ To create a new module:
 """
 
 import web
+import util
 import re
 import feedback
 import ComicEngine

@@ -179,10 +179,13 @@ def main():
     ch_end     = args.end
     feedback.debug_mode = args.verbose
 
-    cengine = ComicEngine.determineFrom(comic_url)
-    saveUrl(cengine, comic_url)
+    try:
+        cengine = ComicEngine.determineFrom(comic_url)
+        saveUrl(cengine, comic_url)
 
-    failed = downloadComic(cengine, comic_url)
+        failed = downloadComic(cengine, comic_url)
+    except ComicEngine.ComicError as e:
+        feedback.fail(str(e) )
 
     if len(failed) > 0:
         feedback.error("Failed:")

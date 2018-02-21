@@ -1,4 +1,5 @@
 import os
+import re
 import feedback
 
 def ensureDirectoryFor(filepath):
@@ -7,6 +8,16 @@ def ensureDirectoryFor(filepath):
     parent_dir = getParentDir(filepath)
     if not os.path.isdir(parent_dir):
         os.makedirs(parent_dir, exist_ok=True)
+
+def listDir(path=".", name_filter=".*"):
+    contents = os.listdir(path)
+    targets = []
+
+    for item in contents:
+        if re.match(name_filter, item):
+            targets.append(item)
+
+    return targets
 
 def getParentDir(path):
     """ Get the parent directory of a path

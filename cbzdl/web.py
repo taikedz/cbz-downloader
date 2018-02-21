@@ -178,6 +178,8 @@ def getUrlComponents(comic_url, group=0):
             raise ComicEngine.ComicError("No such group %i"%group)
         return m.group(group)
 
+    raise ValueError("Not a valid url: %s" % comic_url)
+
 def httpCodeClass(num):
     """ Given a HTTP code, return the denomination
     (100, 200, 300, 400, or 500)
