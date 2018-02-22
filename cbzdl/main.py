@@ -128,6 +128,9 @@ def downloadComic(cengine, comic_url):
             # exceeded max chapter
             break
 
+        elif failed_urls == 0:
+            continue # skip indicator
+
         elif len(failed_urls) > 0:
             feedback.warn("Failed %s"%url)
             failed_chapters[url] = failed_urls
