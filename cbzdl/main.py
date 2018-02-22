@@ -83,20 +83,23 @@ def downloadChapter(cengine, chapter_url, comic_dir):
     page_urls   = chapter.getPageUrls()
     chapter_dir = os.path.sep.join([comic_dir, chapter.getChapterLowerName()])
 
-    errors = 0
+    failed_urls = []
     for url in page_urls:
         try:
             downloadPage(cengine, url, chapter_dir)
         except ComicEngine.ComicError as e:
             feedback.warn("Oops : %s"%str(e) )
-            errors += 1
-        except urllib.error.URLError:
+            failed_urls.append(url)
+        except urllib.error.URLError as e:
             feedback.warn("Could not download %s"%url)
-            errors += 1
+            failed_urls.append(url)
+        except web.DownloadError as e:
+            feedback.warn("%i : %s"%(e.code,str(e)) )
+            failed_urls.append(url)
 
         time.sleep(step_delay)
 
-    if errors == 0:
+    if len(failed_urls) == 0:
         feedback.debug("  Compiling to CBZ ...")
         try:
             cbz.CBZArchive(chapter_dir).compile(remove_dir=True)
@@ -104,7 +107,7 @@ def downloadChapter(cengine, chapter_url, comic_dir):
             feedback.warn( str(e) )
             errors += 1
 
-    return errors
+    return failed_urls
 
 def downloadComic(cengine, comic_url):
     """ Downloads the chapters of a comic
@@ -117,17 +120,17 @@ def downloadComic(cengine, comic_url):
     chapter_urls = comic.getChapterUrls()
     comic_dir    = comic.getComicLowerName()
 
-    failed_chapters = []
+    failed_chapters = {}
     for url in chapter_urls:
-        errors = downloadChapter(cengine, url, comic_dir)
+        failed_urls = downloadChapter(cengine, url, comic_dir)
 
-        if errors == 'max':
+        if failed_urls == 'max':
             # exceeded max chapter
             break
 
-        elif errors > 0:
+        elif len(failed_urls) > 0:
             feedback.warn("Failed %s"%url)
-            failed_chapters.append(url)
+            failed_chapters[url] = failed_urls
 
     return failed_chapters
 
@@ -166,6 +169,9 @@ def saveUrl(cengine, url):
     fh.write(url)
     fh.close()
 
+def write_failures(failed_chapters):
+    pass
+
 def main():
     global step_delay
     global ch_start
@@ -189,8 +195,10 @@ def main():
 
     if len(failed) > 0:
         feedback.error("Failed:")
-        for f in failed:
-            feedback.error("# "+f)
+        for chapter in failed:
+            feedback.error("# %s"%chapter )
+
+        write_failures(failed)
 
 if __name__ == "__main__":
     main()

@@ -40,7 +40,9 @@ class WebResource:
             self.pagedata = gzip.decompress(self.pagedata)
 
     def load(self):
-        """ Loads the page data if not yet already done
+        """ Loads the page data if not yet already done.
+
+        On 500-class errors, retries up to 3 times.
 
         class implementors should not need to call this method.
         """
@@ -74,16 +76,18 @@ class WebResource:
                         time.sleep(2)
                         continue
                     
-                    raise ComicEngine.ComicError("Could not load %s\n%s"%(self.url, str(e)) )
+                    raise DownloadError("Could not load %s\n%s"%(self.url, str(e)), self.url )
 
                 except urllib.error.HTTPError as e:
                     if httpCodeClass(e.code) == 500 and retries > 0:
-                        print("HTTP 50x error - retrying ...")
+                        feedback.warn("# HTTP %i error - retrying ..."%e.code)
                         retries -= 1
                         time.sleep(2)
                         continue
+                    if httpCodeClass(e.code) == 400:
+                        raise DownloadError("Request error: %i" % e.code, self.url, e.code)
                     
-                    raise ComicEngine.ComicError("Could not load %s\n%s"%(self.url, str(e)) )
+                    raise DownloadError("Could not load %s\n%s"%(self.url, str(e)), self.url, e.code )
 
     def getHeader(self, header):
         self.load()
@@ -186,3 +190,10 @@ def httpCodeClass(num):
     """
     x = num % 100
     return num - x
+
+class DownloadError(Exception):
+
+    def __init__(self, message, url, code=0):
+        Exception.__init__(message)
+        self.code = code
+        self.url = url

@@ -8,7 +8,7 @@ The `WebResource` class in `cbzdl/web.py` provides some utilities for fetching p
 
 You can deploy new modules from the local `modules/` folder by running
 
-	./update_modules.sh
+	./install.sh modules
 
 The following are some API notes pertinent specifically to the writing of new modules.
 

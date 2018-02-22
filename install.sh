@@ -60,6 +60,23 @@ ensure_dirs() {
 	mkdir -p "$libdir"
 }
 
+enqueue() {
+	QUEUED_MESSAGES="${QUEUED_MESSAGES:-}$(echo -e "$*\n")"
+}
+
+flush_queue() {
+	echo "${QUEUED_MESSAGES:-}"
+	QUEUED_MESSAGES=''
+}
+
+path_ensure() {
+	if [[ ! "$PATH" =~ "$bindir" ]]; then
+		echo "export PATH='$bindir:\$PATH'" >> "$HOME/.bashrc"
+		export PATH="$bindir:$PATH"
+		enqueue "Please reload your .bashrc"
+	fi
+}
+
 install_pip_requirements() {
 	echo "Installing pip3 requirements"
 
@@ -69,36 +86,54 @@ install_pip_requirements() {
 	PATH="$libdir:$PATH" "$pipcmd" install -r requirements.txt
 }
 
-copy_files() {
-	echo "Copying files ..."
+update_modules() {
+	rsync -a --exclude="*.swp" "$thisdir/modules/" "$libdir/cbzdl/modules/"
+	echo "Modules deployed."
+}
 
-	rsync -a --delete "$thisdir/cbzdl/" "$libdir/cbzdl/"
+update_engine() {
+	rsync -a --delete --exclude="*.swp" "$thisdir/cbzdl/" "$libdir/cbzdl/"
 	if [[ ! -e "$bindir/cbzdl" ]]; then
 		ln -s "$libdir/cbzdl/main.py" "$bindir/cbzdl"
 	fi
 
 	chmod 755 "$libdir/cbzdl/main.py"
 
-	. update_modules.sh
-	update_modules "$libdir/cbzdl"
+	echo "Core cbzdl deployed."
+
+	update_modules
 }
 
 main() {
 	pipcmd=pip3
 	thisdir="$(dirname "$0")"
-
 	determine_dirs
 
-	ensure_python3
-	termux_setup
+	case "${1:-install}" in
+	modules)
+		update_modules
+		;;
+	deploy)
+		update_engine
+		;;
+	install)
 
-	ensure_dirs
+		ensure_python3
+		termux_setup
 
-	install_pip_requirements
+		ensure_dirs
 
-	copy_files
+		install_pip_requirements
 
-	echo "Installed cbzdl."
+		update_engine
+		update_modules
+
+		path_ensure
+		flush_queue
+
+		echo "Installed cbzdl."
+		;;
+	esac
 }
 
 main "$@"
