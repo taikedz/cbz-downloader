@@ -83,6 +83,8 @@ def downloadChapter(cengine, chapter_url, comic_dir):
     page_urls   = chapter.getPageUrls()
     chapter_dir = os.path.sep.join([comic_dir, chapter.getChapterLowerName()])
 
+    feedback.info("  %i pages"%len(page_urls))
+
     failed_urls = []
     for url in page_urls:
         try:
@@ -209,4 +211,7 @@ def main():
         write_failures(failed)
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        feedback.fail("(abort)")
