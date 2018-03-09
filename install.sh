@@ -2,6 +2,24 @@
 
 set -e
 
+printhelp() {
+cat <<EOF
+
+$0 all
+
+	Install pre-requisites, engine, and modules
+
+$0 engine
+
+	Update just the engine
+
+$0 modules
+
+	Update just the modules
+
+EOF
+}
+
 hasbin() {
 	which "$1" 2>/dev/null >/dev/null
 }
@@ -92,7 +110,7 @@ update_modules() {
 }
 
 update_engine() {
-	rsync -a --delete --exclude="*.swp" "$thisdir/cbzdl/" "$libdir/cbzdl/"
+	rsync -a --exclude="*.swp" "$thisdir/cbzdl/" "$libdir/cbzdl/"
 	if [[ ! -e "$bindir/cbzdl" ]]; then
 		ln -s "$libdir/cbzdl/main.py" "$bindir/cbzdl"
 	fi
@@ -100,8 +118,6 @@ update_engine() {
 	chmod 755 "$libdir/cbzdl/main.py"
 
 	echo "Core cbzdl deployed."
-
-	update_modules
 }
 
 main() {
@@ -109,14 +125,14 @@ main() {
 	thisdir="$(dirname "$0")"
 	determine_dirs
 
-	case "${1:-install}" in
+	case "${1}" in
 	modules)
 		update_modules
 		;;
-	deploy)
+	engine)
 		update_engine
 		;;
-	install)
+	all)
 
 		ensure_python3
 		termux_setup
@@ -132,6 +148,9 @@ main() {
 		flush_queue
 
 		echo "Installed cbzdl."
+		;;
+	*)
+		printhelp
 		;;
 	esac
 }

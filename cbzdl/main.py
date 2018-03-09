@@ -181,6 +181,11 @@ def main():
     global ch_end
 
     args       = parseArguments()
+
+    if args.url == "modules":
+        print(ComicEngine.getAvailableModuleNames() )
+        exit(0)
+
     comic_url  = extractUrl(args.url)
 
     step_delay = args.delay

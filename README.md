@@ -20,6 +20,7 @@ This is the list of sites cbzdl knows how to download from.
 * MangaHere (mangahere.cc)
 * Manga-Here.io (similar name to above, but different site)
 * MangaReader.net
+* MangaPanda.com
 
 ## Installing
 
@@ -29,9 +30,14 @@ You will need [Python 3](https://www.python.org/) and `pip3`
 
 On *nix systems, run
 
-	./install.sh
+	./install.sh all
 
 and the `cbzdl` command will be available to you.
+
+You can update the engine or modules individually by running one of
+
+	./install engine
+	./install modules
 
 ### Windows
 
@@ -64,6 +70,10 @@ To you can specify a start chapter, and end chapter (both optional, as ints or f
 By default, `cbzdl` will wait 1 second between fetching two images (some sites throttle heavy downloaders). You can affect the delay by providing a `-d DELAY` argument.
 
 If the `-v` option is specified, debug output is printed
+
+You can list available modules by running
+
+	cbzdl modules
 
 ## Extending
 

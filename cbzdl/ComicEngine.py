@@ -10,6 +10,11 @@ def getAvailableEngineFiles():
     "Get the list of module files"
     return modules.moduleslist.engine_files
 
+def getAvailableModuleNames():
+    "Get the list of plain module names"
+    return modules.moduleslist.module_names
+    
+
 class ComicError(Exception):
     "Standard cbzdl error"
 
