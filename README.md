@@ -13,7 +13,7 @@ CBZ Downloader is a lightly extensible comic downloader, that can assemble comic
 
 ### Supported sites
 
-This is the list of sites cbzdl knows how to download from.
+This is the list of sites cbzdl knows how to download from. The author's main interest is manga hence the heavy manga-oriented support, but any comic hosting site should be supportable.
 
 * Mangakakalot (including manganelo.com)
 * MangaFox (fanfox.net)
@@ -28,9 +28,13 @@ You will need [Python 3](https://www.python.org/) and `pip3`
 
 ### Linux, Mac
 
-On *nix systems, run
+On *nix systems, open a Terminal session and run
+
+	git clone https://github.com/taikedz/cbz-downloader
+	cd cbz-downloader
 
 	./install.sh all
+	. ~/.bashrc
 
 and the `cbzdl` command will be available to you.
 
@@ -59,17 +63,23 @@ You should now be able to use `cbzdl` from the cygwin command line, whilst in an
 
 ## Using
 
-Simply provide a URL to download from - e.g.
+Two run modes:
+
+	# Download a comic
+	cbzdl URL [-s START] [-e END] [-d DELAY]
+
+	# list installed modules
+	cbzdl modules
+
+Simply provide a base URL to download from (front page for the comic) - e.g.
 
 	cbzdl http://mangakakalot.com/manga/acaria
 
 To you can specify a start chapter, and end chapter (both optional, as ints or floats)
 
-	cbzdl URL -s START -e END [-d DELAY] [-v]
+	cbzdl https://www.mangapanda.com/appearance-of-the-yellow-dragon -s 1 -e 2
 
-By default, `cbzdl` will wait 1 second between fetching two images (some sites throttle heavy downloaders). You can affect the delay by providing a `-d DELAY` argument.
-
-If the `-v` option is specified, debug output is printed
+By default, `cbzdl` will wait 1 second between fetching two images (some sites throttle heavy downloaders). You can affect the delay by providing a `-d DELAY` argument, where `DELAY` is an integer, of how long to pause between page downloads.
 
 You can list available modules by running
 

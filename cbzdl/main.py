@@ -83,7 +83,7 @@ def downloadChapter(cengine, chapter_url, comic_dir):
     page_urls   = chapter.getPageUrls()
     chapter_dir = os.path.sep.join([comic_dir, chapter.getChapterLowerName()])
 
-    feedback.info("  %i pages"%len(page_urls))
+    feedback.info("    %i pages"%len(page_urls))
 
     failed_urls = []
     for url in page_urls:
@@ -121,6 +121,8 @@ def downloadComic(cengine, comic_url):
     comic        = cengine.Comic(comic_url)
     chapter_urls = comic.getChapterUrls()
     comic_dir    = comic.getComicLowerName()
+
+    feedback.info("  %i chapters (total)" % len(chapter_urls))
 
     failed_chapters = {}
     for url in chapter_urls:
