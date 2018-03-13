@@ -194,6 +194,6 @@ def httpCodeClass(num):
 class DownloadError(Exception):
 
     def __init__(self, message, url, code=0):
-        Exception.__init__(message)
+        Exception.__init__(self, message)
         self.code = code
         self.url = url
