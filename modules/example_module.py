@@ -15,6 +15,7 @@ import ComicEngine
 
 # Edit this to list the valid domains for the site
 valid_domains = ['example.com', 'm.example.com']
+recommended_delay = 2
 
 class ComicSite(web.WebResource):
 

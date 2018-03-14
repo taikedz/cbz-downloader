@@ -5,6 +5,7 @@ import feedback
 import ComicEngine
 
 valid_domains = ['fanfox.net', 'm.fanfox.net']
+recommended_delay = 1
 
 class ComicSite(web.WebResource):
 

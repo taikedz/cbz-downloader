@@ -147,7 +147,7 @@ def parseArguments():
     parser.add_argument("url", type=str, help="The URL of the comic to download")
     parser.add_argument("-s", "--start", action="store", default=0, type=float, help="Minimum chapter to start from")
     parser.add_argument("-e", "--end", action="store", default=9000, type=float, help="Maximum chapter to include (up to 9000)")
-    parser.add_argument("-d", "--delay", action='store', type=int, default=1, help="Delay to introduce during download (seconds)")
+    parser.add_argument("-d", "--delay", action='store', type=int, default=-1, help="Delay to introduce during download (seconds)")
     parser.add_argument("-v", "--verbose", action='store_true', help="Verbose mode")
 
     return parser.parse_args()
@@ -192,13 +192,24 @@ def main():
 
     comic_url  = extractUrl(args.url)
 
-    step_delay = args.delay
     ch_start   = args.start
     ch_end     = args.end
     feedback.debug_mode = args.verbose
 
     try:
         cengine = ComicEngine.determineFrom(comic_url)
+
+        if args.delay >= 0:
+            step_delay = args.delay
+
+        elif 'recommended_delay' in dir(cengine):
+            step_delay = cengine.recommended_delay
+
+        else:
+            step_delay = 1
+
+        feedback.debug("Delay chosen: %i" % step_delay)
+
         saveUrl(cengine, comic_url)
 
         failed = downloadComic(cengine, comic_url)

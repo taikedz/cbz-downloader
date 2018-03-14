@@ -18,6 +18,13 @@ Implementors are encouraged to read the source of existing modules. The simplest
 
 This is the basic essential methods that module implementors must provide. All classes here are direct or indirect subclasses of `web.WebResource` (see below)
 
+### Variables
+
+`valid_domains` - a list of domain names which trigger the use of the module
+
+`recommended_delay` - an integer value representing how long to wait between image downloads by default
+
+### Classes
 
 ```python
 class ComicSite(web.WebResource):

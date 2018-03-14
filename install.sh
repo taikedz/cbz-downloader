@@ -110,7 +110,7 @@ update_modules() {
 }
 
 update_engine() {
-	rsync -a --exclude="*.swp" "$thisdir/cbzdl/" "$libdir/cbzdl/"
+	rsync -a --exclude="*.swp" "$thisdir/engine/" "$libdir/cbzdl/"
 	if [[ ! -e "$bindir/cbzdl" ]]; then
 		ln -s "$libdir/cbzdl/main.py" "$bindir/cbzdl"
 	fi
@@ -126,10 +126,10 @@ main() {
 	determine_dirs
 
 	case "${1}" in
-	modules)
+	modules|modules/)
 		update_modules
 		;;
-	engine)
+	engine|engine/)
 		update_engine
 		;;
 	all)

@@ -15,6 +15,7 @@ import util
 
 # Edit this to list the valid domains for the site
 valid_domains = ['mangahere.co', 'mangahere.cc','www.mangahere.co', 'www.mangahere.cc']
+recommended_delay = 1
 
 class ComicSite(web.WebResource):
 

@@ -79,7 +79,7 @@ To you can specify a start chapter, and end chapter (both optional, as ints or f
 
 	cbzdl https://www.mangapanda.com/appearance-of-the-yellow-dragon -s 1 -e 2
 
-By default, `cbzdl` will wait 1 second between fetching two images (some sites throttle heavy downloaders). You can affect the delay by providing a `-d DELAY` argument, where `DELAY` is an integer, of how long to pause between page downloads.
+By default, `cbzdl` will wait a few seconds between fetching two images (some sites throttle heavy downloaders), depending on the module's recommended delay. You can set the delay manually by providing a `-d DELAY` argument, where `DELAY` is an integer, of how long to pause between page downloads.
 
 You can list available modules by running
 

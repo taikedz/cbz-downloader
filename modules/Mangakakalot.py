@@ -16,6 +16,7 @@ import ComicEngine
 
 # Edit this to list the valid domains for the site
 valid_domains = ['mangakakalot.com', 'manganelo.com']
+recommended_delay = 0
 
 class ComicSite(web.WebResource):
 
