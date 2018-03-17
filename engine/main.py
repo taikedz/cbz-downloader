@@ -86,6 +86,9 @@ def downloadChapter(cengine, chapter_url, comic_dir):
     feedback.info("  Get %s"%chapter_url)
 
     page_urls   = chapter.getPageUrls()
+    if page_urls == None:
+        return ['%s not a valid chapter'%chapter_num]
+
     chapter_dir = os.path.sep.join([comic_dir, chapter.getChapterLowerName()])
 
     feedback.info("    %i pages"%len(page_urls))

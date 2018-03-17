@@ -6,6 +6,17 @@ import ComicEngine
 
 state_file_name = "state.data"
 
+def getOldSourceUrl(source_dir):
+    """ Compatibility function to lift from previous source.url files
+    """
+    urlfile = os.path.sep.join([source_dir, "source.url"])
+    if os.path.isfile(urlfile):
+        fh = open(urlfile, 'r')
+        url = fh.read()
+        fh.close()
+        return url
+    raise ComicStateError("No source URL found in [%s]" % source_dir)
+
 class DownloaderState:
 
     def __init__(self, stated_source):
@@ -17,6 +28,10 @@ class DownloaderState:
         if os.path.isdir(stated_source):
             self.__state_file = os.path.sep.join([stated_source, state_file_name])
             self.load()
+
+            if not self.has("url"):
+                self.set("url", getOldSourceUrl(stated_source) )
+
             self.cengine = ComicEngine.determineFrom( self.get("url") )
 
         else:

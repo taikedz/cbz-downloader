@@ -70,7 +70,7 @@ class Chapter(ComicSite):
             i += 1
 
             if re.match(".+/nextchap.png", imgurl):
-                continue
+                return None
 
             page_urls.append("%s?u=%s&n=%s"%(self.url , base64.urlsafe_b64encode(imgurl.encode("utf-8")).decode("utf-8"), pagenum) )
 

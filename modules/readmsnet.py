@@ -66,10 +66,13 @@ class Chapter(ComicSite):
         self.name = self.getChapterLowerName()
 
     def getChapterLowerName(self):
-        return util.regexGroup("https://readms.net/r/([^/]+)", self.url)
+        cname = util.regexGroup("https://readms.net/r/([^/]+)", self.url) + self.getChapterNumber()
+        return "%s_chapter-%s" % (cname, self.getChapterNumber().zfill(3) )
 
     def getChapterNumber(self):
-        return util.regexGroup("https://readms.net/r/%s/([0-9.]+)"%self.name, self.url)
+        cnum = util.regexGroup("https://readms.net/r/[^/]+/([0-9.]+)", self.url)
+        feedback.debug("Return chapter number: %s" % cnum)
+        return cnum
 
     def getPageUrls(self):
 
