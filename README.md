@@ -68,6 +68,9 @@ Two run modes:
 	# Download a comic
 	cbzdl URL [-s START] [-e END] [-d DELAY]
 
+	# Check for prior failures and exit
+	cbzdl URL -f
+
 	# list installed modules
 	cbzdl modules
 
@@ -78,6 +81,10 @@ Simply provide a base URL to download from (front page for the comic) - e.g.
 To you can specify a start chapter, and end chapter (both optional, as ints or floats)
 
 	cbzdl https://www.mangapanda.com/appearance-of-the-yellow-dragon -s 1 -e 2
+
+`URL` can be literally a URL, or the folder containing the chapters previously downloaded.
+
+If you have already downloaded the comic from the specified `URL`, and you do not specify a start chapter, cbzdl starts again from the last chapter successully downloaded.
 
 By default, `cbzdl` will wait a few seconds between fetching two images (some sites throttle heavy downloaders), depending on the module's recommended delay. You can set the delay manually by providing a `-d DELAY` argument, where `DELAY` is an integer, of how long to pause between page downloads.
 

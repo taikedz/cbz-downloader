@@ -34,13 +34,13 @@ class Comic(ComicSite):
     
     def __init__(self, url):
         ComicSite.__init__(self, url)
-        self.lowername = util.regexGroup("http://%s/manga/([^/]+)"%(self.domain), self.url)
+        self.lower_name = util.regexGroup("http://%s/manga/([^/]+)"%(self.domain), self.url)
 
     def getComicLowerName(self):
-        return self.lowername
+        return self.lower_name
 
     def getChapterUrls(self):
-        urls = self.searchInSource(".+(http://%s/chapter/%s/[^\"]+)"%(self.domain, self.lowername), group=1)
+        urls = self.searchInSource(".+(http://%s/chapter/%s/[^\"]+)"%(self.domain, self.lower_name), group=1)
         urls.reverse()
         return urls
 

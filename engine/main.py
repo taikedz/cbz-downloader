@@ -11,6 +11,7 @@ import time
 import feedback
 import web
 import cbz
+import state
 
 """
 
@@ -29,7 +30,7 @@ Re-attempt the download of the missing pages of a chapter.
 """
 
 step_delay = 1
-ch_start = 0
+ch_start = -1
 ch_end = 9000
 
 def abbreviateUrl(url, max=60):
@@ -77,6 +78,10 @@ def downloadChapter(cengine, chapter_url, comic_dir):
         return 0
     elif chapter_num > ch_end:
         return 'max'
+    
+    # IF no start was specified THEN use the last success as base
+    if ch_start == -1 and chapter_num <= dlstate.get("last"):
+        return 0
 
     feedback.info("  Get %s"%chapter_url)
 
@@ -105,6 +110,7 @@ def downloadChapter(cengine, chapter_url, comic_dir):
         feedback.debug("  Compiling to CBZ ...")
         try:
             cbz.CBZArchive(chapter_dir).compile(remove_dir=True)
+            dlstate.set("last", chapter_num) # Inequivocable success !
         except Exception as e:
             feedback.warn( str(e) )
             errors += 1
@@ -133,7 +139,7 @@ def downloadComic(cengine, comic_url):
             break
 
         elif failed_urls == 0:
-            continue # skip indicator
+            continue # not reached min chapter
 
         elif len(failed_urls) > 0:
             feedback.warn("Failed %s"%url)
@@ -145,59 +151,60 @@ def parseArguments():
 
     parser = argparse.ArgumentParser(sys.argv, description="Download a comic")
     parser.add_argument("url", type=str, help="The URL of the comic to download")
-    parser.add_argument("-s", "--start", action="store", default=0, type=float, help="Minimum chapter to start from")
+    parser.add_argument("-s", "--start", action="store", default=-1, type=float, help="Minimum chapter to start from")
     parser.add_argument("-e", "--end", action="store", default=9000, type=float, help="Maximum chapter to include (up to 9000)")
     parser.add_argument("-d", "--delay", action='store', type=int, default=-1, help="Delay to introduce during download (seconds)")
     parser.add_argument("-v", "--verbose", action='store_true', help="Verbose mode")
+    parser.add_argument("-f", "--failed", action='store_true', help="Check for failed items")
 
     return parser.parse_args()
 
-def extractUrl(url):
-    if not os.path.isdir(url):
-        return url
+def checkSpecialCases(keyword):
+    global dlstate
 
-    sourceurl_file = os.path.sep.join([url, "source.url"])
+    if keyword == "modules":
+        print(ComicEngine.getAvailableModuleNames() )
+        exit(0)
 
-    if os.path.isfile(sourceurl_file):
-        fh = open(sourceurl_file, 'r')
-        url = fh.read().strip()
-        fh.close()
-    else:
-        raise ComicEngine.ComicError("No source.url file in %s"%url)
+def checkState(args):
+    if args.failed:
+        if dlstate.has("failed_chapters") and dlstate.get("failed_chapters") != None:
+            feedback.warn(str(dlstate.get("failed_chapters") ) )
+        else:
+            feedback.info("No failures to report.")
+        exit(0)
 
-    return url
+def initializeState():
+    try:
+        dlstate.get("last")
+    except state.ComicStateError as e:
+        dlstate.set("last", -1)
 
-def saveUrl(cengine, url):
-    comic_dir = cengine.Comic(url).getComicLowerName()
-    sourceurl_file = os.path.sep.join([comic_dir, "source.url"])
-
-    filesys.ensureDirectoryFor(sourceurl_file)
-    fh = open(sourceurl_file, 'w')
-    fh.write(url)
-    fh.close()
-
-def write_failures(failed_chapters):
-    pass
+    # TODO manage failed chapters in state file instead of initializing on each run
+    dlstate.set("failed_chapters", None)
 
 def main():
     global step_delay
     global ch_start
     global ch_end
+    global dlstate
 
-    args       = parseArguments()
-
-    if args.url == "modules":
-        print(ComicEngine.getAvailableModuleNames() )
-        exit(0)
-
-    comic_url  = extractUrl(args.url)
-
-    ch_start   = args.start
-    ch_end     = args.end
+    args = parseArguments()
     feedback.debug_mode = args.verbose
 
+    checkSpecialCases(args.url)
+
+    dlstate = state.DownloaderState(args.url)
+    checkState(args)
+
+    ch_start = args.start
+    ch_end = args.end
+
+    initializeState()
+
     try:
-        cengine = ComicEngine.determineFrom(comic_url)
+        cengine = dlstate.cengine
+        comic_url = dlstate.get("url")
 
         if args.delay >= 0:
             step_delay = args.delay
@@ -210,9 +217,8 @@ def main():
 
         feedback.debug("Delay chosen: %i" % step_delay)
 
-        saveUrl(cengine, comic_url)
-
         failed = downloadComic(cengine, comic_url)
+
     except ComicEngine.ComicError as e:
         feedback.fail(str(e) )
 
@@ -221,7 +227,7 @@ def main():
         for chapter in failed:
             feedback.error("# %s"%chapter )
 
-        write_failures(failed)
+        dlstate.set("failed_chapters", failed)
 
 if __name__ == "__main__":
     try:
