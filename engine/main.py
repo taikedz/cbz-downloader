@@ -178,6 +178,9 @@ def checkState(args):
         exit(0)
 
 def initializeState():
+    if ch_start != -1:
+        dlstate.set("last", ch_start)
+
     try:
         dlstate.get("last")
     except state.ComicStateError as e:
