@@ -159,6 +159,7 @@ def parseArguments():
     parser.add_argument("-d", "--delay", action='store', type=int, default=-1, help="Delay to introduce during download (seconds)")
     parser.add_argument("-v", "--verbose", action='store_true', help="Verbose mode")
     parser.add_argument("-f", "--failed", action='store_true', help="Check for failed items")
+    parser.add_argument("-l", "--last", action='store_true', help="Display last successfully downloded chapter")
 
     return parser.parse_args()
 
@@ -173,6 +174,12 @@ def checkState(args):
     if args.failed:
         if dlstate.has("failed_chapters") and dlstate.get("failed_chapters") != None:
             feedback.warn(str(dlstate.get("failed_chapters") ) )
+        else:
+            feedback.info("No failures to report.")
+        exit(0)
+    elif args.last:
+        if dlstate.has("last"):
+            feedback.info(str(dlstate.get("last") ) )
         else:
             feedback.info("No failures to report.")
         exit(0)
