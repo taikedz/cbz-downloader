@@ -14,7 +14,7 @@ import ComicEngine
 import util
 
 # Edit this to list the valid domains for the site
-valid_domains = ['mangahere.co', 'mangahere.cc','www.mangahere.co', 'www.mangahere.cc']
+valid_domains = ['mangahere.cc', 'mangahere.co', 'www.mangahere.co', 'www.mangahere.cc']
 recommended_delay = 1
 
 class ComicSite(web.WebResource):
@@ -28,12 +28,15 @@ class ComicSite(web.WebResource):
     def validateUrl(self, url):
         """ If you want to rewrite the URL before accessing it, modify this section
         """
+        for target_domain in valid_domains:
+            url = url.replace(target_domain, valid_domains[0])
         return re.sub("^https?://(%s)/"%("|".join(valid_domains)), "http://www.mangahere.cc/")
 
 class Comic(ComicSite):
     
     def __init__(self, url):
         ComicSite.__init__(self, url)
+        self.url = re.sub("/manga/([^/]+)/.+", "/manga/\\1", self.url)
 
     def getComicLowerName(self):
         return util.regexGroup(".+/manga/([^/]+)", self.url)

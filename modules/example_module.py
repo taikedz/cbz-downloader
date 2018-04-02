@@ -28,12 +28,16 @@ class ComicSite(web.WebResource):
     def validateUrl(self, url):
         """ If you want to rewrite the URL before accessing it, modify this section
         """
+        # Example: ensure the domain used is the first in the valid_domains list
+        for target_domain in valid_domains:
+            url = url.replace(target_domain, valid_domains[0])
         return url
 
 class Comic(ComicSite):
     
     def __init__(self, url):
         ComicSite.__init__(self, url)
+        self.url = re.sub("/main/([^/]+)/.+", "/main/\\1", self.url) # TODO you might want to transform a page-specific URL to generic mainpage URL here
 
     def getComicLowerName(self):
         pass

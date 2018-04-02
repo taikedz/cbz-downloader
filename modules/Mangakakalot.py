@@ -34,6 +34,7 @@ class Comic(ComicSite):
     
     def __init__(self, url):
         ComicSite.__init__(self, url)
+        self.url = re.sub("/manga/([^/]+)/.+", "manga/\\1/", self.url)
         self.lower_name = util.regexGroup("http://%s/manga/([^/]+)"%(self.domain), self.url)
 
     def getComicLowerName(self):
@@ -64,6 +65,9 @@ class Chapter(ComicSite):
         # All pages are in one page - encode them and stuff them in a bogus query string
         i = 1 # counter... hopefully pages always come in-order...!
         for img in image_nodes:
+            if not 'src' in img.attrib.keys():
+                continue
+
             imgurl = img.attrib['src']
             feedback.debug(imgurl)
             pagenum = i #util.regexGroup(".+?([0-9]+)\\.[a-z]+$", imgurl)

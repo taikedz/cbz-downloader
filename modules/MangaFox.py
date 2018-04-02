@@ -4,7 +4,7 @@ import re
 import feedback
 import ComicEngine
 
-valid_domains = ['fanfox.net', 'm.fanfox.net']
+valid_domains = ['fanfox.net', 'm.fanfox.net', 'mangafox.me', 'mangafox.la']
 recommended_delay = 1
 
 class ComicSite(web.WebResource):
@@ -18,12 +18,17 @@ class ComicSite(web.WebResource):
     def validateUrl(self, url):
         """ If you want to rewrite the URL before accessing it, modify this section
         """
-        return re.sub("https?://m.", "http://", url)
+        for target_domain in valid_domains:
+            url = url.replace(target_domain, valid_domains[0])
+
+        newstring = re.sub("https://", "http://", url)
+        return newstring
 
 class Comic(ComicSite):
     
     def __init__(self, url):
         ComicSite.__init__(self, url)
+        self.url = re.sub("/manga/([^/]+)/.+", "/manga/\\1/", self.url)
         self.name = self.getComicLowerName()
 
     def getComicLowerName(self):
@@ -33,7 +38,6 @@ class Comic(ComicSite):
         feedback.debug("domain: "+str(self.domain))
 
         doc = self.getDomObject()
-        #obj_a = doc.get_elements_by_tag_name("a")
         obj_a = doc.cssselect("a")
         
         urls = []

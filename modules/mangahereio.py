@@ -35,6 +35,7 @@ class Comic(ComicSite):
     
     def __init__(self, url):
         ComicSite.__init__(self, url)
+        self.url = re.sub("manga-here.io/([^/]+)/.+", "manga-here.io/\\1/")
         self.name = self.getComicLowerName()
 
     def getComicLowerName(self):

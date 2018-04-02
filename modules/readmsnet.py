@@ -34,7 +34,6 @@ class ComicSite(web.WebResource):
 class Comic(ComicSite):
     
     def __init__(self, url):
-        # Special consideration - give it any page, redirect to main series page
         ComicSite.__init__(self, re.sub("/r/([^/]+).*", "/manga/\\1", url) )
         feedback.debug(self.url)
         self.name = self.getComicLowerName()
@@ -66,7 +65,7 @@ class Chapter(ComicSite):
         self.name = self.getChapterLowerName()
 
     def getChapterLowerName(self):
-        cname = util.regexGroup("https://readms.net/r/([^/]+)", self.url) + self.getChapterNumber()
+        cname = util.regexGroup("https://readms.net/r/([^/]+)", self.url)
         return "%s_chapter-%s" % (cname, self.getChapterNumber().zfill(3) )
 
     def getChapterNumber(self):

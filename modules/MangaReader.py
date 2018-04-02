@@ -33,7 +33,7 @@ class ComicSite(web.WebResource):
 class Comic(ComicSite):
     
     def __init__(self, url):
-        ComicSite.__init__(self, url)
+        ComicSite.__init__(self, re.sub("/([^/]+)/[0-9.]+$", "/\\1", url) )
         self.name = self.getComicLowerName()
 
     def getComicLowerName(self):
