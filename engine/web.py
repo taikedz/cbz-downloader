@@ -6,6 +6,7 @@
 import urllib.request
 import urllib.error
 from lxml.html import parse as parseHTML
+from urllib.parse import urljoin
 import filesys
 import io
 import re
@@ -20,7 +21,9 @@ useragent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (
 class WebResource:
     """ A WebResource is identified by its URL
     """
-    def __init__(self, url):
+    def __init__(self, url, path=None):
+        if path != None:
+            url = urljoin(url, path)
         self.url = url
         self.domain = getUrlComponents(url, 2)
         self.pagedata = None
@@ -80,7 +83,7 @@ class WebResource:
 
                 except urllib.error.HTTPError as e:
                     if httpCodeClass(e.code) == 500 and retries > 0:
-                        feedback.warn("# HTTP %i error - retrying ..."%e.code)
+                        feedback.warn("# HTTP %i error - retrying %i times ..."%(e.code, retries))
                         retries -= 1
                         time.sleep(2)
                         continue
@@ -132,7 +135,7 @@ class WebResource:
         """ Get source data as a series of lines. Lines do not include line terminator sequence.
         """
         sourcedata = self.getSource()
-        sourcedata = re.split("(\\r|\\n|\\r\\n)", sourcedata)
+        sourcedata = re.split("(\\r\\n|\\r|\\n)", sourcedata)
 
         if matching:
             return self.filter(souredata, matching)
