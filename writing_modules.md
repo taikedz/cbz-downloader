@@ -1,10 +1,10 @@
 # Essential API for module writing
 
-The core CBZ Downloader in `cbzdl/` takes care of managing chapter downloads and CBZ assembling ; support for individual sites must be added by modules.
+The core CBZ Downloader in `engine/` takes care of managing chapter downloads and CBZ assembling ; support for individual sites must be added by modules.
 
 To add a new module, copy the `modules/example_module.py` file into a new file in the `modules/` folder, and adjust it for the site you want.
 
-The `WebResource` class in `cbzdl/web.py` provides some utilities for fetching pages and data, so all you need to do is take care of extracting the relevant portions of the site you are scraping. See the existing modules for examples.
+The `WebResource` class in `engine/web.py` provides some utilities for fetching pages and data, so all you need to do is take care of extracting the relevant portions of the site you are scraping. See the existing modules for examples.
 
 You can deploy new modules from the local `modules/` folder by running
 
