@@ -59,16 +59,18 @@ class Chapter(ComicSite):
 
     def getPageUrls(self):
         document = self.getDomObject()
-        image_nodes = document.get_element_by_id("vungdoc").getchildren()
+        child_nodes = document.get_element_by_id("vungdoc").getchildren()
 
         page_urls = []
         # All pages are in one page - encode them and stuff them in a bogus query string
         i = 1 # counter... hopefully pages always come in-order...!
-        for img in image_nodes:
-            if not 'src' in img.attrib.keys():
+        for node in child_nodes:
+            if node.tag != 'img':
+                continue
+            elif not 'src' in node.attrib.keys():
                 continue
 
-            imgurl = img.attrib['src']
+            imgurl = node.attrib['src']
             feedback.debug(imgurl)
             pagenum = i #util.regexGroup(".+?([0-9]+)\\.[a-z]+$", imgurl)
             i += 1

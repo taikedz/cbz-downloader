@@ -36,7 +36,7 @@ ch_end = 9000
 def abbreviateUrl(url, max=60):
     """ Reduce long URLs for screen display
     """
-    if len(url) > max:
+    if not feedback.debug_mode and len(url) > max:
         mid = int( (max - 5)/2 )
         return "%s ... %s"%(url[:mid],url[-mid:])
     return url
