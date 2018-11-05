@@ -28,20 +28,20 @@ class ComicSite(web.WebResource):
     def validateUrl(self, url):
         """ If you want to rewrite the URL before accessing it, modify this section
         """
-        return re.sub("^https:", "http:", url.lower() )
+        return url.lower() # re.sub("^https:", "http:", url.lower() )
 
 class Comic(ComicSite):
     
     def __init__(self, url):
         ComicSite.__init__(self, url)
         self.url = re.sub("/manga/([^/]+)/.+", "manga/\\1/", self.url)
-        self.lower_name = util.regexGroup("http://%s/manga/([^/]+)"%(self.domain), self.url)
+        self.lower_name = util.regexGroup("https?://%s/manga/([^/]+)"%(self.domain), self.url)
 
     def getComicLowerName(self):
         return self.lower_name
 
     def getChapterUrls(self):
-        urls = self.searchInSource(".+(http://%s/chapter/%s/[^\"]+)"%(self.domain, self.lower_name), group=1)
+        urls = self.searchInSource(".+(https?://%s/chapter/%s/[^\"]+)"%(self.domain, self.lower_name), group=1)
         urls.reverse()
         return urls
 
@@ -54,7 +54,7 @@ class Chapter(ComicSite):
         return util.regexGroup(".+/chapter_(.+)$", self.url)
 
     def getChapterLowerName(self):
-        comicname = util.regexGroup(".+/chapter/([^/]+)", self.url)
+        comicname = util.regexGroup(".+/chapter/(read_)?([^/]+)(_manga_online_for_free)?", self.url, 2)
         return "%s_ch%s" % (comicname, self.getChapterNumber().zfill(3) )
 
     def getPageUrls(self):
