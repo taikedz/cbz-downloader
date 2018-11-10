@@ -120,7 +120,7 @@ def downloadChapter(cengine, chapter_url, comic_dir):
 
     return failed_urls
 
-def downloadComic(cengine, comic_url):
+def downloadComic(cengine, comic_url, script_args):
     """ Downloads the chapters of a comic
 
     Displays any failed chapters after execution
@@ -132,6 +132,9 @@ def downloadComic(cengine, comic_url):
     comic_dir    = comic.getComicLowerName()
 
     feedback.info("  %i chapters (total)" % len(chapter_urls))
+
+    if script_args.count_chapters:
+        exit(0)
 
     failed_chapters = {}
     for url in chapter_urls:
@@ -160,6 +163,7 @@ def parseArguments():
     parser.add_argument("-v", "--verbose", action='store_true', help="Verbose mode")
     parser.add_argument("-f", "--failed", action='store_true', help="Check for failed items")
     parser.add_argument("-l", "--last", action='store_true', help="Display last successfully downloded chapter")
+    parser.add_argument("-c", "--count-chapters", action='store_true', help="List the number of chapters available on website")
 
     return parser.parse_args()
 
@@ -211,7 +215,7 @@ def main():
     checkState(args)
 
     ch_start = args.start
-    ch_end = args.end
+    ch_end   = args.end
 
     initializeState()
 
@@ -230,7 +234,7 @@ def main():
 
         feedback.debug("Delay chosen: %i" % step_delay)
 
-        failed = downloadComic(cengine, comic_url)
+        failed = downloadComic(cengine, comic_url, args)
 
     except ComicEngine.ComicError as e:
         feedback.fail(str(e) )
