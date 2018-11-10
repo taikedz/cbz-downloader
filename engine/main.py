@@ -29,6 +29,7 @@ Re-attempt the download of the missing pages of a chapter.
 
 """
 
+cbzdl_version = "1.2.1"
 step_delay = 1
 ch_start = -1
 ch_end = 9000
@@ -205,6 +206,9 @@ def main():
     global ch_start
     global ch_end
     global dlstate
+    global cbzdl_version
+
+    print("cbzdl v.%s" % cbzdl_version)
 
     args = parseArguments()
     feedback.debug_mode = args.verbose
