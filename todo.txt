@@ -1,0 +1,5 @@
+* Fix naming and numbering of chapters
+    * this should be the responsibility of the engine (currently moduled do the zero-filling themselves...)
+    * 1.2 --> 001.2
+* Allow providing custom name
+    * 'site.com/manga/read_manganme_free' --> 'manganame'
