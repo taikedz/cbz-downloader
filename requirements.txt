@@ -1,2 +1,4 @@
-lxml
-cssselect
+cssselect==1.0.3
+selenium==3.141.0
+urllib3==1.24.1
+wheel==0.29.0
