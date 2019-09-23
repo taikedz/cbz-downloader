@@ -1,5 +1,7 @@
 # CBZ Comic Downloader
 
+Moved to <https://gitlab.com/taikedz/cbz-downloader>
+
 Download comics from the web and save them as CBZ files for reading. Ideal for loading up a tablet and offline reading.
 
 CBZ Downloader is a lightly extensible comic downloader, that can assemble comic pages by chapter into CBZ files for use in comic readers, available for [desktop](https://lifehacker.com/5858906/five-best-desktop-comic-book-readers) and [mobile](https://thedroidguy.com/2018/01/5-best-comic-book-reader-apps-android-device-2018-1069923).
